@@ -27,6 +27,7 @@
       "@/hooks/*": ["./src/lib/hooks/*"],
       "@/utils/*": ["./src/lib/utils/*"],
       "@/api/*": ["./src/lib/api/*"],
+      "@/constants": ["./src/lib/constants"],
       "@/constants/*": ["./src/lib/constants/*"],
       "@/styles/*": ["./src/styles/*"]
     },
