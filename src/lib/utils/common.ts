@@ -236,25 +236,38 @@ export function scrollToTop(smooth = true): void {
 export async function copyToClipboard(text: string): Promise<boolean> {
   if (!isClient) return false;
 
+  // Проверяем поддержку современного Clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      console.error('Не удалось скопировать текст:', error);
+      return false;
+    }
+  }
+
+  // Fallback для старых браузеров или небезопасных контекстов
   try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Fallback для старых браузеров
     const textArea = document.createElement('textarea');
     textArea.value = text;
     textArea.style.position = 'absolute';
     textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    textArea.setAttribute('readonly', '');
+    textArea.setAttribute('aria-hidden', 'true');
+
     document.body.appendChild(textArea);
     textArea.select();
+    textArea.setSelectionRange(0, 99999); // Для мобильных устройств
 
-    try {
-      document.execCommand('copy');
-      return true;
-    } catch {
-      return false;
-    } finally {
-      document.body.removeChild(textArea);
-    }
+    // Используем более современный подход с обработкой ошибок
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+
+    return successful;
+  } catch (error) {
+    console.error('Fallback копирования не удался:', error);
+    return false;
   }
 }
