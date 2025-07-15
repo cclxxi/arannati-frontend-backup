@@ -1,6 +1,6 @@
 // Утилита для объединения классов (пока без clsx и tailwind-merge)
 export function cn(...classes: (string | undefined | null | false)[]): string {
-  return classes.filter(Boolean).join(' ');
+  return classes.filter(Boolean).join(" ");
 }
 
 // Debounce функция с правильной типизацией
@@ -33,29 +33,29 @@ export function throttle<T extends (...args: Parameters<T>) => ReturnType<T>>(
 }
 
 // Генерация уникального ID
-export function generateId(prefix = 'id'): string {
+export function generateId(prefix = "id"): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 // Sleep функция для асинхронных операций
 export function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Проверка на пустое значение с правильной типизацией
 export function isEmpty(value: unknown): boolean {
   if (value == null) return true;
-  if (typeof value === 'boolean') return false;
-  if (typeof value === 'number') return false;
-  if (typeof value === 'string') return value.trim().length === 0;
+  if (typeof value === "boolean") return false;
+  if (typeof value === "number") return false;
+  if (typeof value === "string") return value.trim().length === 0;
   if (Array.isArray(value)) return value.length === 0;
-  if (typeof value === 'object') return Object.keys(value).length === 0;
+  if (typeof value === "object") return Object.keys(value).length === 0;
   return true;
 }
 
 // Глубокое клонирование объекта
 export function deepClone<T>(obj: T): T {
-  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj === null || typeof obj !== "object") return obj;
 
   if (obj instanceof Date) {
     return new Date(obj.getTime()) as T;
@@ -84,8 +84,8 @@ export function deepClone<T>(obj: T): T {
 
 // Получение инициалов из имени
 export function getInitials(firstName?: string, lastName?: string): string {
-  const first = firstName?.charAt(0).toUpperCase() || '';
-  const last = lastName?.charAt(0).toUpperCase() || '';
+  const first = firstName?.charAt(0).toUpperCase() || "";
+  const last = lastName?.charAt(0).toUpperCase() || "";
   return `${first}${last}`;
 }
 
@@ -106,9 +106,9 @@ export function buildQueryString(params: Record<string, unknown>): string {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
+    if (value !== undefined && value !== null && value !== "") {
       if (Array.isArray(value)) {
-        value.forEach(v => searchParams.append(key, String(v)));
+        value.forEach((v) => searchParams.append(key, String(v)));
       } else {
         searchParams.append(key, String(value));
       }
@@ -120,16 +120,16 @@ export function buildQueryString(params: Record<string, unknown>): string {
 
 // Типизированный интерфейс для localStorage
 interface StorageInterface {
-    get: <T>(key: string, defaultValue: T) => T;
-    set: <T>(key: string, value: T) => void;
-    remove: (key: string) => void;
-    clear?: () => void;
+  get: <T>(key: string, defaultValue: T) => T;
+  set: <T>(key: string, value: T) => void;
+  remove: (key: string) => void;
+  clear?: () => void;
 }
 
 // Local storage helpers с обработкой ошибок
 export const localStorage: StorageInterface = {
   get: <T>(key: string, defaultValue: T): T => {
-    if (typeof window === 'undefined') return defaultValue;
+    if (typeof window === "undefined") return defaultValue;
 
     try {
       const item = window.localStorage.getItem(key);
@@ -140,32 +140,32 @@ export const localStorage: StorageInterface = {
   },
 
   set: <T>(key: string, value: T): void => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     try {
       window.localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
-      console.error('Не удалось сохранить в localStorage:', error);
+      console.error("Не удалось сохранить в localStorage:", error);
     }
   },
 
   remove: (key: string): void => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     try {
       window.localStorage.removeItem(key);
     } catch (error) {
-      console.error('Не удалось удалить из localStorage:', error);
+      console.error("Не удалось удалить из localStorage:", error);
     }
   },
 
   clear: (): void => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     try {
       window.localStorage.clear();
     } catch (error) {
-      console.error('Не удалось очистить localStorage:', error);
+      console.error("Не удалось очистить localStorage:", error);
     }
   },
 };
@@ -173,7 +173,7 @@ export const localStorage: StorageInterface = {
 // Session storage helpers
 export const sessionStorage: StorageInterface = {
   get: <T>(key: string, defaultValue: T): T => {
-    if (typeof window === 'undefined') return defaultValue;
+    if (typeof window === "undefined") return defaultValue;
 
     try {
       const item = window.sessionStorage.getItem(key);
@@ -184,28 +184,28 @@ export const sessionStorage: StorageInterface = {
   },
 
   set: <T>(key: string, value: T): void => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     try {
       window.sessionStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
-      console.error('Не удалось сохранить в sessionStorage:', error);
+      console.error("Не удалось сохранить в sessionStorage:", error);
     }
   },
 
   remove: (key: string): void => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     try {
       window.sessionStorage.removeItem(key);
     } catch (error) {
-      console.error('Не удалось удалить из sessionStorage:', error);
+      console.error("Не удалось удалить из sessionStorage:", error);
     }
   },
 };
 
 // Проверка выполнения на клиенте
-export const isClient = typeof window !== 'undefined';
+export const isClient = typeof window !== "undefined";
 
 // Проверка выполнения на сервере
 export const isServer = !isClient;
@@ -228,7 +228,7 @@ export function scrollToTop(smooth = true): void {
 
   window.scrollTo({
     top: 0,
-    behavior: smooth ? 'smooth' : 'auto',
+    behavior: smooth ? "smooth" : "auto",
   });
 }
 
@@ -242,32 +242,32 @@ export async function copyToClipboard(text: string): Promise<boolean> {
       await navigator.clipboard.writeText(text);
       return true;
     } catch (error) {
-      console.error('Не удалось скопировать текст:', error);
+      console.error("Не удалось скопировать текст:", error);
       return false;
     }
   }
 
   // Fallback для старых браузеров или небезопасных контекстов
   try {
-    const textArea = document.createElement('textarea');
+    const textArea = document.createElement("textarea");
     textArea.value = text;
-    textArea.style.position = 'absolute';
-    textArea.style.left = '-999999px';
-    textArea.style.top = '-999999px';
-    textArea.setAttribute('readonly', '');
-    textArea.setAttribute('aria-hidden', 'true');
+    textArea.style.position = "absolute";
+    textArea.style.left = "-999999px";
+    textArea.style.top = "-999999px";
+    textArea.setAttribute("readonly", "");
+    textArea.setAttribute("aria-hidden", "true");
 
     document.body.appendChild(textArea);
     textArea.select();
     textArea.setSelectionRange(0, 99999); // Для мобильных устройств
 
     // Используем более современный подход с обработкой ошибок
-    const successful = document.execCommand('copy');
+    const successful = document.execCommand("copy");
     document.body.removeChild(textArea);
 
     return successful;
   } catch (error) {
-    console.error('Fallback копирования не удался:', error);
+    console.error("Fallback копирования не удался:", error);
     return false;
   }
 }
