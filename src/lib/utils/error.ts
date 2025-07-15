@@ -1,19 +1,19 @@
-import { AxiosError } from 'axios';
-import toast from 'react-hot-toast';
+import { AxiosError } from "axios";
+import toast from "react-hot-toast";
 
 // Error response type from backend
 export interface ErrorResponse {
-    status: string;
-    statusCode: number;
-    message: string;
-    path?: string;
-    timestamp: string;
-    errors?: ValidationError[];
+  status: string;
+  statusCode: number;
+  message: string;
+  path?: string;
+  timestamp: string;
+  errors?: ValidationError[];
 }
 
 export interface ValidationError {
-    field: string;
-    message: string;
+  field: string;
+  message: string;
 }
 
 // Custom error class
@@ -23,7 +23,7 @@ export class ApiError extends Error {
 
   constructor(message: string, statusCode: number, errors?: ValidationError[]) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.statusCode = statusCode;
     this.errors = errors;
   }
@@ -42,33 +42,33 @@ export const getErrorMessage = (error: unknown): string => {
     }
 
     if (error.response?.status === 401) {
-      return 'Необходима авторизация';
+      return "Необходима авторизация";
     }
 
     if (error.response?.status === 403) {
-      return 'Доступ запрещен';
+      return "Доступ запрещен";
     }
 
     if (error.response?.status === 404) {
-      return 'Ресурс не найден';
+      return "Ресурс не найден";
     }
 
     if (error.response?.status === 500) {
-      return 'Внутренняя ошибка сервера';
+      return "Внутренняя ошибка сервера";
     }
 
-    return error.message || 'Произошла ошибка при выполнении запроса';
+    return error.message || "Произошла ошибка при выполнении запроса";
   }
 
   if (error instanceof Error) {
     return error.message;
   }
 
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     return error;
   }
 
-  return 'Неизвестная ошибка';
+  return "Неизвестная ошибка";
 };
 
 // Extract validation errors
@@ -92,7 +92,7 @@ export const showError = (error: unknown, customMessage?: string): void => {
   const message = customMessage || getErrorMessage(error);
   toast.error(message, {
     duration: 5000,
-    position: 'top-right',
+    position: "top-right",
   });
 };
 
@@ -100,7 +100,7 @@ export const showError = (error: unknown, customMessage?: string): void => {
 export const showSuccess = (message: string): void => {
   toast.success(message, {
     duration: 3000,
-    position: 'top-right',
+    position: "top-right",
   });
 };
 
@@ -108,8 +108,8 @@ export const showSuccess = (message: string): void => {
 export const showInfo = (message: string): void => {
   toast(message, {
     duration: 3000,
-    position: 'top-right',
-    icon: 'ℹ️',
+    position: "top-right",
+    icon: "ℹ️",
   });
 };
 
@@ -130,7 +130,7 @@ export const handleApiError = (error: unknown): never => {
 // Check if error is network error
 export const isNetworkError = (error: unknown): boolean => {
   if (error instanceof AxiosError) {
-    return !error.response && error.code === 'ERR_NETWORK';
+    return !error.response && error.code === "ERR_NETWORK";
   }
   return false;
 };
@@ -150,8 +150,11 @@ export const isAuthError = (error: unknown): boolean => {
 export const formatValidationErrors = (
   errors: ValidationError[],
 ): Record<string, string> => {
-  return errors.reduce((acc, error) => {
-    acc[error.field] = error.message;
-    return acc;
-  }, {} as Record<string, string>);
+  return errors.reduce(
+    (acc, error) => {
+      acc[error.field] = error.message;
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
 };
