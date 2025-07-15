@@ -12,8 +12,7 @@ export function useChats() {
 
   // Подписка на новые сообщения через WebSocket
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const handleNewMessage = async (message: MessageDTO) => {
+    const handleNewMessage = async () => {
       // Инвалидируем список чатов для обновления последнего сообщения
       await queryClient.invalidateQueries({
         queryKey: queryKeys.messages.chats(),
@@ -46,7 +45,8 @@ export function useChatMessages(chatId: string, enabled = true) {
   useEffect(() => {
     if (!enabled || !chatId) return;
 
-    const handleNewMessage = (message: MessageDTO) => {
+    const handleNewMessage = (...args: unknown[]) => {
+      const message = args[0] as MessageDTO;
       // Добавляем новое сообщение в кеш
       queryClient.setQueryData<MessageDTO[]>(
         queryKeys.messages.chat(chatId),
@@ -99,7 +99,7 @@ export function useSendMessage() {
 
       return { chatId };
     },
-    onSuccess: async (message, variables, context) => {
+    onSuccess: async (_, __, context) => {
       if (context?.chatId) {
         // Инвалидируем чат для обновления
         await queryClient.invalidateQueries({

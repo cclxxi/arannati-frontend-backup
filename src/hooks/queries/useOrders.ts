@@ -1,15 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ordersApi, type OrderFilters } from "@/api";
+import { ordersApi, type OrderFilters } from "@/lib/api";
 import { queryKeys } from "@/lib/react-query/keys";
 import { showSuccess } from "@/utils/error";
 import { APP_ROUTES } from "@/constants";
-/* import type { OrderCreateDTO } from '@/types/api'; */
+import type { OrderDTO } from "@/types/api";
 
 // Hook для получения списка заказов
 export function useOrders(filters: OrderFilters = {}) {
   return useQuery({
-    queryKey: queryKeys.orders.list(filters),
+    queryKey: queryKeys.orders.list(filters as Record<string, unknown>),
     queryFn: () => ordersApi.getUserOrders(filters),
   });
 }
@@ -49,7 +49,7 @@ export function useCreateOrder() {
 
   return useMutation({
     mutationFn: ordersApi.createOrder,
-    onSuccess: async (order) => {
+    onSuccess: async (order: OrderDTO) => {
       // Очищаем корзину
       queryClient.setQueryData(queryKeys.cart.items(), []);
       await queryClient.invalidateQueries({ queryKey: queryKeys.cart.all });
@@ -74,7 +74,7 @@ export function useCancelOrder() {
   return useMutation({
     mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
       ordersApi.cancelOrder(id, reason),
-    onSuccess: async (order) => {
+    onSuccess: async (order: OrderDTO) => {
       // Обновляем детали заказа в кеше
       queryClient.setQueryData(queryKeys.orders.detail(order.id), order);
 
