@@ -4,6 +4,8 @@ import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { ConfigProvider } from "antd";
 import ruRU from "antd/locale/ru_RU";
 import { QueryProvider } from "@/lib/react-query/provider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import React from "react";
@@ -63,20 +65,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Ant Design тема
-const theme = {
-  token: {
-    colorPrimary: "#E91E63",
-    colorLink: "#E91E63",
-    colorSuccess: "#4CAF50",
-    colorWarning: "#FFC107",
-    colorError: "#F44336",
-    colorInfo: "#2196F3",
-    borderRadius: 8,
-    fontFamily: inter.style.fontFamily,
-  },
-};
-
 export default function RootLayout({
   children,
 }: {
@@ -86,34 +74,39 @@ export default function RootLayout({
     <html lang="ru" suppressHydrationWarning>
       <body className={inter.className}>
         <QueryProvider>
-          <AntdRegistry>
-            <ConfigProvider theme={theme} locale={ruRU}>
-              {children}
-              <Toaster
-                position="top-right"
-                toastOptions={{
-                  duration: 3000,
-                  style: {
-                    background: "#363636",
-                    color: "#fff",
-                    borderRadius: "8px",
-                  },
-                  success: {
-                    iconTheme: {
-                      primary: "#4CAF50",
-                      secondary: "#fff",
-                    },
-                  },
-                  error: {
-                    iconTheme: {
-                      primary: "#F44336",
-                      secondary: "#fff",
-                    },
-                  },
-                }}
-              />
-            </ConfigProvider>
-          </AntdRegistry>
+          <AuthProvider>
+            <AntdRegistry>
+              <ThemeProvider>
+                <ConfigProvider locale={ruRU}>
+                  {children}
+                  <Toaster
+                    position="top-right"
+                    toastOptions={{
+                      duration: 3000,
+                      style: {
+                        background: "#363636",
+                        color: "#fff",
+                        borderRadius: "8px",
+                      },
+                      className: "dark:bg-gray-800 dark:text-white",
+                      success: {
+                        iconTheme: {
+                          primary: "#4CAF50",
+                          secondary: "#fff",
+                        },
+                      },
+                      error: {
+                        iconTheme: {
+                          primary: "#F44336",
+                          secondary: "#fff",
+                        },
+                      },
+                    }}
+                  />
+                </ConfigProvider>
+              </ThemeProvider>
+            </AntdRegistry>
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>
