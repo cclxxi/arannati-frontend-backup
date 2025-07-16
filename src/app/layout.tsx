@@ -6,6 +6,7 @@ import ruRU from "antd/locale/ru_RU";
 import { QueryProvider } from "@/lib/react-query/provider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { AppAuthProvider } from "@/components/providers/AppAuthProvider";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import React from "react";
@@ -75,37 +76,39 @@ export default function RootLayout({
       <body className={inter.className}>
         <QueryProvider>
           <AuthProvider>
-            <AntdRegistry>
-              <ThemeProvider>
-                <ConfigProvider locale={ruRU}>
-                  {children}
-                  <Toaster
-                    position="top-right"
-                    toastOptions={{
-                      duration: 3000,
-                      style: {
-                        background: "#363636",
-                        color: "#fff",
-                        borderRadius: "8px",
-                      },
-                      className: "dark:bg-gray-800 dark:text-white",
-                      success: {
-                        iconTheme: {
-                          primary: "#4CAF50",
-                          secondary: "#fff",
+            <AppAuthProvider>
+              <AntdRegistry>
+                <ThemeProvider>
+                  <ConfigProvider locale={ruRU}>
+                    {children}
+                    <Toaster
+                      position="top-right"
+                      toastOptions={{
+                        duration: 3000,
+                        style: {
+                          background: "#363636",
+                          color: "#fff",
+                          borderRadius: "8px",
                         },
-                      },
-                      error: {
-                        iconTheme: {
-                          primary: "#F44336",
-                          secondary: "#fff",
+                        className: "dark:bg-gray-800 dark:text-white",
+                        success: {
+                          iconTheme: {
+                            primary: "#4CAF50",
+                            secondary: "#fff",
+                          },
                         },
-                      },
-                    }}
-                  />
-                </ConfigProvider>
-              </ThemeProvider>
-            </AntdRegistry>
+                        error: {
+                          iconTheme: {
+                            primary: "#F44336",
+                            secondary: "#fff",
+                          },
+                        },
+                      }}
+                    />
+                  </ConfigProvider>
+                </ThemeProvider>
+              </AntdRegistry>
+            </AppAuthProvider>
           </AuthProvider>
         </QueryProvider>
       </body>
