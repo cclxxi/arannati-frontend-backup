@@ -73,6 +73,11 @@
   --animate-slide-up: slide-up 0.3s ease-out;
   --animate-slide-down: slide-down 0.3s ease-out;
   --animate-scale-in: scale-in 0.2s ease-out;
+
+  /* Transitions */
+  --transition-base: all 0.2s ease;
+  --transition-fast: all 0.15s ease;
+  --transition-slow: all 0.3s ease;
 }
 
 /* Custom animations */
@@ -180,6 +185,33 @@
 
   .glass-dark {
     @apply bg-black/10 backdrop-blur-md border border-black/20;
+  }
+
+  /* Transitions */
+  .transition-base {
+    transition: var(--transition-base);
+  }
+
+  .transition-fast {
+    transition: var(--transition-fast);
+  }
+
+  .transition-slow {
+    transition: var(--transition-slow);
+  }
+
+  /* Hover effects */
+  .hover-lift {
+    @apply transition-transform duration-200 hover:-translate-y-1;
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+
+  /* Focus styles */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-background;
   }
 }
 

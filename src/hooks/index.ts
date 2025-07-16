@@ -71,3 +71,6 @@ export {
   useUnreadMessagesCount,
   useTypingIndicator,
 } from "./queries/useMessages";
+
+// Theme hook
+export { useTheme } from "./useTheme";
