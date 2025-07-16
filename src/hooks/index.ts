@@ -73,5 +73,4 @@ export {
 } from "./queries/useMessages";
 
 // Theme hook
-export {useTheme}
-  from "./useTheme";
+export { useTheme } from "./useTheme";
