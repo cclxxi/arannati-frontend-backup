@@ -40,7 +40,7 @@ type OpenModalParams =
     | { type: 'product-preview'; data: ProductPreviewData }
     | { type: 'image-gallery'; data: ImageGalleryData };
 
-interface UIState {
+export interface UIState {
     // Mobile menu
     mobileMenu: MobileMenuState;
     setMobileMenuOpen: (isOpen: boolean) => void;

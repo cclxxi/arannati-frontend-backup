@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { CatalogFilters } from '@/lib/api';
 
-interface FiltersState extends CatalogFilters {
+export interface FiltersState extends CatalogFilters {
     // UI state
     isFiltersOpen: boolean;
 

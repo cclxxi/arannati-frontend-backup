@@ -3,7 +3,7 @@ import {createJSONStorage, persist} from 'zustand/middleware';
 import {STORAGE_KEYS} from '@/constants';
 import type {CartDTO} from '@/types/api';
 
-interface CartState {
+export interface CartState {
     items: CartDTO[];
     isOpen: boolean;
 

@@ -4,7 +4,7 @@ import type { UserDTO } from '@/types/api';
 import { wsClient } from '@/api/websocket';
 import { auth } from '@/lib/api';
 
-interface AuthState {
+export interface AuthState {
     user: UserDTO | null;
     isAuthenticated: boolean;
     isLoading: boolean;
