@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { ConfigProvider, theme as antdTheme } from "antd";
+import ruRU from "antd/locale/ru_RU";
 import { useThemeStore } from "@/stores";
 
 interface ThemeProviderProps {
@@ -52,6 +53,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   return (
     <ConfigProvider
+      locale={ruRU}
       theme={{
         algorithm,
         token,

@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
-import { ConfigProvider } from "antd";
-import ruRU from "antd/locale/ru_RU";
 import { QueryProvider } from "@/lib/react-query/provider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { AppAuthProvider } from "@/components/providers/AppAuthProvider";
+import { AntdRenderProvider } from "@/components/providers/AntdRenderProvider";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import React from "react";
@@ -74,12 +73,12 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className={inter.className}>
-        <QueryProvider>
-          <AuthProvider>
-            <AppAuthProvider>
-              <AntdRegistry>
-                <ThemeProvider>
-                  <ConfigProvider locale={ruRU}>
+        <ThemeProvider>
+          <QueryProvider>
+            <AuthProvider>
+              <AppAuthProvider>
+                <AntdRenderProvider>
+                  <AntdRegistry>
                     {children}
                     <Toaster
                       position="top-right"
@@ -105,12 +104,12 @@ export default function RootLayout({
                         },
                       }}
                     />
-                  </ConfigProvider>
-                </ThemeProvider>
-              </AntdRegistry>
-            </AppAuthProvider>
-          </AuthProvider>
-        </QueryProvider>
+                  </AntdRegistry>
+                </AntdRenderProvider>
+              </AppAuthProvider>
+            </AuthProvider>
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

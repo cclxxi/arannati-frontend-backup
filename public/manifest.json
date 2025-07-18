@@ -1,0 +1,30 @@
+{
+  "name": "Arannati - Профессиональная косметика",
+  "short_name": "Arannati",
+  "description": "Интернет-магазин профессиональной косметики Arannati в Казахстане",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E91E63",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "orientation": "portrait",
+  "lang": "ru-KZ",
+  "dir": "ltr",
+  "prefer_related_applications": false
+}
