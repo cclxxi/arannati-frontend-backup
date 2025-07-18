@@ -1,114 +1,124 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useForm } from "react-hook-form";
+// import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { Button, Input, FormItem, FormError, Checkbox } from "@/components/ui";
+import { Button, Form, Input, Alert /*, Space*/ } from "antd";
+import {
+  EyeInvisibleOutlined,
+  EyeTwoTone,
+  UserOutlined,
+  LockOutlined,
+} from "@ant-design/icons";
 import { useLogin } from "@/hooks";
-import { loginSchema, type LoginInput } from "@/utils/validation";
-import { APP_ROUTES } from "@/constants";
+import { loginSchema, type LoginInput } from "@/lib/utils/validation";
+import toast from "react-hot-toast";
 
 export function LoginForm() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const login = useLogin();
+  // const [showPassword, setShowPassword] = useState(false);
+  const { mutate: login, isLoading, error } = useLogin();
 
   const {
-    register,
+    // register,
     handleSubmit,
-    formState: { errors },
+    control,
+    formState: { errors, isSubmitting },
+    reset,
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
   });
 
-  const onSubmit = (data: LoginInput) => {
-    login.mutate(data);
+  const onSubmit = async (data: LoginInput) => {
+    try {
+      login(data);
+      toast.success("Успешный вход в систему!");
+      reset();
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error("Ошибка входа в систему");
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <FormItem>
-        <Input
-          size="lg"
-          placeholder="Email"
-          type="email"
-          autoComplete="email"
-          prefix={<Mail className="w-5 h-5 text-gray-400" />}
-          error={!!errors.email}
-          {...register("email")}
-        />
-        <FormError error={errors.email?.message} />
-      </FormItem>
-
-      <FormItem>
-        <Input
-          size="lg"
-          placeholder="Пароль"
-          type={showPassword ? "text" : "password"}
-          autoComplete="current-password"
-          prefix={<Lock className="w-5 h-5 text-gray-400" />}
-          suffix={
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              {showPassword ? (
-                <EyeOff className="w-5 h-5" />
-              ) : (
-                <Eye className="w-5 h-5" />
-              )}
-            </button>
-          }
-          error={!!errors.password}
-          {...register("password")}
-        />
-        <FormError error={errors.password?.message} />
-      </FormItem>
-
-      <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <Checkbox
-            checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
-          />
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            Запомнить меня
-          </span>
-        </label>
-
-        <Link
-          href={APP_ROUTES.auth.forgotPassword}
-          className="text-sm text-primary hover:text-primary-dark transition-colors"
-        >
-          Забыли пароль?
-        </Link>
-      </div>
-
-      <Button
-        htmlType="submit"
-        variant="primary"
-        size="lg"
-        fullWidth
-        loading={login.isPending}
-        disabled={login.isPending || Object.keys(errors).length > 0}
+    <div className="w-full max-w-md mx-auto">
+      <Form
+        layout="vertical"
+        onFinish={handleSubmit(onSubmit)}
+        className="space-y-4"
       >
-        Войти
-      </Button>
+        {error && (
+          <Alert
+            message="Ошибка входа"
+            description={error.message || "Неверные учетные данные"}
+            type="error"
+            showIcon
+            className="mb-4"
+          />
+        )}
 
-      <div className="text-center">
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          Нет аккаунта?{" "}
-        </span>
-        <Link
-          href={APP_ROUTES.auth.register}
-          className="text-sm text-primary hover:text-primary-dark transition-colors font-medium"
+        <Form.Item
+          label="Email"
+          validateStatus={errors.email ? "error" : ""}
+          help={errors.email?.message}
+          required
         >
-          Зарегистрироваться
-        </Link>
-      </div>
-    </form>
+          <Controller
+            control={control}
+            name="email"
+            render={({ field }) => (
+              <Input
+                {...field}
+                type="email"
+                placeholder="Введите ваш email"
+                prefix={<UserOutlined className="text-gray-400" />}
+                size="large"
+                disabled={isLoading || isSubmitting}
+              />
+            )}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="Пароль"
+          validateStatus={errors.password ? "error" : ""}
+          help={errors.password?.message}
+          required
+        >
+          <Controller
+            control={control}
+            name="password"
+            render={({ field }) => (
+              <Input.Password
+                {...field}
+                placeholder="Введите ваш пароль"
+                prefix={<LockOutlined className="text-gray-400" />}
+                size="large"
+                disabled={isLoading || isSubmitting}
+                iconRender={(visible) =>
+                  visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
+                }
+              />
+            )}
+          />
+        </Form.Item>
+
+        <Form.Item>
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={isLoading || isSubmitting}
+            disabled={isLoading || isSubmitting}
+            size="large"
+            className="w-full"
+          >
+            {isLoading || isSubmitting ? "Вход..." : "Войти"}
+          </Button>
+        </Form.Item>
+      </Form>
+    </div>
   );
 }

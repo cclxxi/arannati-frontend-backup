@@ -1,25 +1,155 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { auth } from "@/lib/api/client";
+import { authApi } from "@/lib/api/services/auth";
+import { getUserFromToken } from "@/lib/utils/jwt";
 import { queryKeys } from "@/lib/react-query/keys";
-import { showSuccess /*, showError*/ } from "@/utils/error";
-import type {
-  /* LoginInput,
-    RegisterInput,
-    CosmetologistRegisterInput,
-    ForgotPasswordInput,*/
-  ResetPasswordInput,
-} from "@/utils/validation";
 import type { UserDTO } from "@/types/api";
-import { APP_ROUTES } from "@/constants";
+import type {
+  LoginInput,
+  RegisterInput,
+  CosmetologistRegisterInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
+} from "@/lib/utils/validation";
+import { USER_ROLES } from "@/lib/constants";
+
+interface AuthState {
+  user: UserDTO | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+}
+
+export function useAuth() {
+  const router = useRouter();
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    isLoading: true,
+    isAuthenticated: false,
+  });
+
+  // Проверка аутентификации при загрузке
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const tokens = auth.getTokens();
+
+        if (!tokens?.accessToken) {
+          setAuthState({
+            user: null,
+            isLoading: false,
+            isAuthenticated: false,
+          });
+          return;
+        }
+
+        // Получаем пользователя из токена
+        const userFromToken = getUserFromToken(tokens.accessToken);
+
+        if (!userFromToken) {
+          auth.removeTokens();
+          setAuthState({
+            user: null,
+            isLoading: false,
+            isAuthenticated: false,
+          });
+          return;
+        }
+
+        // Получаем полную информацию о пользователе с сервера
+        const user = await authApi.getMe();
+
+        setAuthState({
+          user,
+          isLoading: false,
+          isAuthenticated: true,
+        });
+      } catch (error) {
+        console.error("Auth check failed:", error);
+        auth.removeTokens();
+        setAuthState({
+          user: null,
+          isLoading: false,
+          isAuthenticated: false,
+        });
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // Функция входа
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await authApi.login({ email, password });
+
+      setAuthState({
+        user: response.user,
+        isLoading: false,
+        isAuthenticated: true,
+      });
+
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Функция выхода
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setAuthState({
+        user: null,
+        isLoading: false,
+        isAuthenticated: false,
+      });
+      router.push("/login");
+    }
+  };
+
+  // Функция обновления данных пользователя
+  const updateUser = (user: UserDTO) => {
+    setAuthState((prev) => ({
+      ...prev,
+      user,
+    }));
+  };
+
+  return {
+    ...authState,
+    login,
+    logout,
+    updateUser,
+  };
+}
+
 // Hook для получения текущего пользователя
 export function useCurrentUser() {
-  return useQuery({
+  const {
+    data: user,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: queryKeys.auth.user(),
-    queryFn: authApi.getMe,
-    staleTime: Infinity, // Данные пользователя редко меняются
-    retry: false, // Не повторяем при ошибке авторизации
+    queryFn: async () => {
+      try {
+        return await authApi.getMe();
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+        throw error;
+      }
+    },
+    enabled: auth.isAuthenticated(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false,
   });
+
+  return { user, isLoading, error, data: user };
 }
 
 // Hook для входа в систему
@@ -27,121 +157,165 @@ export function useLogin() {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  return useMutation({
-    mutationFn: authApi.login,
-    onSuccess: async (data) => {
-      // Сохраняем данные пользователя в кеш
-      queryClient.setQueryData(queryKeys.auth.user(), data.user);
+  const mutation = useMutation({
+    mutationFn: async (data: LoginInput) => {
+      return await authApi.login(data);
+    },
+    onSuccess: async (response) => {
+      // Обновляем кэш пользователя
+      queryClient.setQueryData(queryKeys.auth.user(), response.user);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.user() });
 
-      // Инвалидируем все запросы
-      await queryClient.invalidateQueries();
-
-      showSuccess("Вы успешно вошли в систему");
-
-      // Редирект в зависимости от роли
-      switch (data.user.role) {
-        case "ADMIN":
-          router.push(APP_ROUTES.admin.dashboard);
-          break;
-        case "COSMETOLOGIST":
-          router.push(APP_ROUTES.cosmetologist.dashboard);
-          break;
-        default:
-          router.push(APP_ROUTES.user.dashboard);
-      }
+      // Редирект на главную страницу или страницу, с которой пришел пользователь
+      router.push("/");
     },
   });
+
+  return {
+    mutate: mutation.mutate,
+    isLoading: mutation.isPending,
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+    error: mutation.error,
+  };
 }
 
 // Hook для регистрации
 export function useRegister() {
   const router = useRouter();
 
-  return useMutation({
-    mutationFn: authApi.register,
+  const mutation = useMutation({
+    mutationFn: async (data: RegisterInput) => {
+      return await authApi.register(data);
+    },
     onSuccess: () => {
-      showSuccess(
-        "Регистрация прошла успешно! Теперь вы можете войти в систему",
-      );
-      router.push(APP_ROUTES.auth.login);
+      // После успешной регистрации перенаправляем на страницу входа
+      router.push("/login?registered=true");
     },
   });
+
+  return {
+    mutate: mutation.mutate,
+    isLoading: mutation.isPending,
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+    error: mutation.error,
+  };
 }
 
 // Hook для регистрации косметолога
 export function useRegisterCosmetologist() {
-  const router = useRouter();
-
-  return useMutation({
-    mutationFn: authApi.registerCosmetologist,
-    onSuccess: () => {
-      showSuccess(
-        "Заявка отправлена! Мы проверим ваши документы и свяжемся с вами в течение 3 рабочих дней",
-      );
-      router.push(APP_ROUTES.auth.login);
+  const mutation = useMutation({
+    mutationFn: async (data: CosmetologistRegisterInput) => {
+      // Just pass the data object directly to the API service
+      // The API service will handle FormData creation and proper multipart structure
+      return await authApi.registerCosmetologist(data);
     },
   });
+
+  return {
+    registerCosmetologist: mutation.mutate,
+    isLoading: mutation.isPending,
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+    error: mutation.error,
+    mutate: mutation.mutate,
+  };
 }
 
 // Hook для выхода из системы
 export function useLogout() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
-  return useMutation({
-    mutationFn: authApi.logout,
+  const mutation = useMutation({
+    mutationFn: async () => {
+      return await authApi.logout();
+    },
     onSuccess: () => {
-      // Очищаем весь кеш
-      queryClient.clear();
-      showSuccess("Вы вышли из системы");
+      // Очищаем кэш пользователя
+      queryClient.removeQueries({ queryKey: queryKeys.auth.user() });
+
+      // Редирект на страницу входа
+      router.push("/login");
     },
   });
+
+  return {
+    logout: mutation.mutate,
+    isLoading: mutation.isPending,
+    isPending: mutation.isPending,
+  };
 }
 
-// Hook для восстановления пароля
+// Hook для запроса восстановления пароля
 export function useForgotPassword() {
-  return useMutation({
-    mutationFn: authApi.forgotPassword,
-    onSuccess: () => {
-      showSuccess(
-        "Инструкции по восстановлению пароля отправлены на вашу почту",
-      );
+  const mutation = useMutation({
+    mutationFn: async (data: ForgotPasswordInput) => {
+      return await authApi.forgotPassword(data);
     },
   });
+
+  return {
+    forgotPassword: mutation.mutate,
+    isLoading: mutation.isPending,
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+    error: mutation.error,
+    mutate: mutation.mutate,
+  };
 }
 
 // Hook для сброса пароля
 export function useResetPassword() {
   const router = useRouter();
 
-  return useMutation({
-    mutationFn: ({ token, ...data }: ResetPasswordInput & { token: string }) =>
-      authApi.resetPassword(token, data),
+  const mutation = useMutation({
+    mutationFn: async (params: {
+      token: string;
+      password: string;
+      confirmPassword: string;
+    }) => {
+      const { token, ...data } = params;
+      return await authApi.resetPassword(token, data as ResetPasswordInput);
+    },
     onSuccess: () => {
-      showSuccess(
-        "Пароль успешно изменен! Теперь вы можете войти с новым паролем",
-      );
-      router.push(APP_ROUTES.auth.login);
+      // После успешного сброса пароля перенаправляем на страницу входа
+      router.push("/login?reset=success");
     },
   });
+
+  return {
+    mutate: mutation.mutate,
+    isLoading: mutation.isPending,
+    isPending: mutation.isPending,
+    isError: mutation.isError,
+    error: mutation.error,
+  };
 }
 
 // Hook для проверки аутентификации
 export function useIsAuthenticated() {
   const { data: user, isLoading } = useCurrentUser();
+  const isAuthenticated = !!user && auth.isAuthenticated();
 
-  return {
-    isAuthenticated: !!user,
-    isLoading,
-    user,
-  };
+  return { isAuthenticated, isLoading, user };
 }
 
-// Hook для проверки роли
-export function useHasRole(roles: Array<UserDTO["role"]>) {
-  const { user } = useIsAuthenticated();
+// Hook для проверки роли пользователя
+export function useHasRole(
+  roles: (keyof typeof USER_ROLES)[] | keyof typeof USER_ROLES,
+) {
+  const { user, isLoading } = useCurrentUser();
 
-  return {
-    hasRole: user ? roles.includes(user.role) : false,
-    userRole: user?.role,
-  };
+  // Проверяем, является ли roles массивом
+  const roleArray = Array.isArray(roles) ? roles : [roles];
+
+  // Проверяем, имеет ли пользователь хотя бы одну из указанных ролей
+  const hasRole =
+    !isLoading &&
+    !!user &&
+    roleArray.some((role) => user.role === USER_ROLES[role]);
+
+  return { hasRole, isLoading };
 }

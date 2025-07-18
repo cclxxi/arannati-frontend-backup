@@ -1,57 +1,63 @@
 // Утилиты для работы с JWT токенами
 
+// Типы для JWT payload
 interface JWTPayload {
-  sub: string; // user id
-  email: string;
-  role: string;
-  exp: number; // expiration time
-  iat: number; // issued at
+  sub?: string;
+  userId?: string;
+  id?: string;
+  email?: string;
+  username?: string;
+  role?: string;
+  authorities?: string[];
+  firstName?: string;
+  given_name?: string;
+  lastName?: string;
+  family_name?: string;
+  exp?: number;
+  iat?: number;
+  [key: string]: unknown;
 }
 
-// Декодирование JWT токена (без проверки подписи)
+// Функция для декодирования JWT токена
 export function decodeJWT(token: string): JWTPayload | null {
   try {
-    // JWT состоит из трех частей: header.payload.signature
     const parts = token.split(".");
-
     if (parts.length !== 3) {
       return null;
     }
 
     // Декодируем payload (вторая часть)
     const payload = parts[1];
-
-    // Проверяем, что payload существует
     if (!payload) {
       return null;
     }
 
-    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
-
-    return JSON.parse(decoded) as JWTPayload;
-  } catch (error) {
-    console.error("Ошибка декодирования JWT:", error);
+    const decodedPayload = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(decodedPayload) as JWTPayload;
+  } catch {
+    console.error("Error decoding JWT");
     return null;
   }
 }
 
-// Проверка истечения токена
+// Функция для проверки истечения токена
 export function isTokenExpired(token: string): boolean {
-  const payload = decodeJWT(token);
+  try {
+    const payload = decodeJWT(token);
+    if (!payload || !payload.exp) {
+      return true;
+    }
 
-  if (!payload || !payload.exp) {
+    const currentTime = Math.floor(Date.now() / 1000);
+    const bufferTime = 30; // 30 секунд буфера
+
+    return payload.exp < currentTime + bufferTime;
+  } catch {
     return true;
   }
-
-  // exp в JWT хранится в секундах, а Date.now() возвращает миллисекунды
-  const expirationTime = payload.exp * 1000;
-  const currentTime = Date.now();
-
-  // Добавляем небольшой буфер в 30 секунд
-  return currentTime >= expirationTime - 30000;
 }
 
-// Получение времени до истечения токена
+// Функция для получения времени до истечения токена
 export function getTokenExpirationTime(token: string): number | null {
   const payload = decodeJWT(token);
 
@@ -65,19 +71,46 @@ export function getTokenExpirationTime(token: string): number | null {
   return Math.max(0, expirationTime - currentTime);
 }
 
-// Получение данных пользователя из токена
-export function getUserFromToken(
-  token: string,
-): { id: string; email: string; role: string } | null {
-  const payload = decodeJWT(token);
+// Функция для извлечения пользователя из токена
+export function getUserFromToken(token: string): {
+  id: string;
+  email: string;
+  role: string;
+  firstName?: string;
+  lastName?: string;
+} | null {
+  try {
+    if (isTokenExpired(token)) {
+      return null;
+    }
 
-  if (!payload) {
+    const payload = decodeJWT(token);
+    if (!payload) {
+      return null;
+    }
+
+    // Адаптируем под структуру вашего JWT payload от Spring Boot
+    return {
+      id: payload.sub || payload.userId || payload.id || "",
+      email: payload.email || payload.username || "",
+      role: payload.role || payload.authorities?.[0] || "USER",
+      firstName: payload.firstName || payload.given_name,
+      lastName: payload.lastName || payload.family_name,
+    };
+  } catch {
+    console.error("Error extracting user from token");
     return null;
   }
+}
 
-  return {
-    id: payload.sub,
-    email: payload.email,
-    role: payload.role,
-  };
+// Функция для проверки валидности токена
+export function isValidToken(token: string): boolean {
+  if (!token) return false;
+
+  try {
+    const payload = decodeJWT(token);
+    return <boolean>(<unknown>payload) && !isTokenExpired(token);
+  } catch {
+    return false;
+  }
 }

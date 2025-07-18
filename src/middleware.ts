@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { /*APP_ROUTES,*/ USER_ROLES } from "@/constants";
+import { USER_ROLES } from "@/constants";
+import { STORAGE_KEYS } from "@/lib/constants";
+
+// Типы для JWT payload
+interface JWTPayload {
+  sub?: string;
+  userId?: string;
+  id?: string;
+  role?: string;
+  authorities?: string[];
+  exp?: number;
+  iat?: number;
+  [key: string]: unknown;
+}
 
 // Публичные роуты (доступны всем)
 const publicRoutes = ["/", "/catalog", "/product", "/about", "/contacts"];
@@ -31,33 +44,66 @@ function pathStartsWith(path: string, prefix: string): boolean {
 
 // Функция для получения токена из cookies
 function getAuthToken(request: NextRequest): string | undefined {
-  return request.cookies.get("arannati_auth_token")?.value;
+  return request.cookies.get(STORAGE_KEYS.AUTH_TOKEN)?.value;
 }
 
-// Функция для декодирования токена
-async function decodeToken(token: string): Promise<{ role: string } | null> {
+// Функция для декодирования JWT токена
+function decodeJWTPayload(token: string): JWTPayload | null {
   try {
-    // Для Basic Auth (временно)
-    if (!token.includes(".")) {
-      // Временная логика для разработки
-      if (token.includes("admin")) return { role: USER_ROLES.ADMIN };
-      if (token.includes("cosmetologist"))
-        return { role: USER_ROLES.COSMETOLOGIST };
-      if (token) return { role: USER_ROLES.USER };
+    const parts = token.split(".");
+    if (parts.length !== 3) {
       return null;
     }
 
-    // Для JWT токенов
-    const { getUserFromToken, isTokenExpired } = await import("@/utils/jwt");
+    const payload = parts[1];
+    if (!payload) {
+      return null;
+    }
 
-    // Проверяем, не истек ли токен
+    const decodedPayload = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(decodedPayload) as JWTPayload;
+  } catch {
+    console.error("Error decoding JWT");
+    return null;
+  }
+}
+
+// Функция для проверки истечения токена
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = decodeJWTPayload(token);
+    if (!payload || !payload.exp) {
+      return true;
+    }
+
+    const currentTime = Math.floor(Date.now() / 1000);
+    return payload.exp < currentTime;
+  } catch {
+    return true;
+  }
+}
+
+// Функция для извлечения пользователя из токена
+function getUserFromToken(
+  token: string,
+): { role: string; userId: string } | null {
+  try {
     if (isTokenExpired(token)) {
       return null;
     }
 
-    const user = getUserFromToken(token);
-    return user ? { role: user.role } : null;
+    const payload = decodeJWTPayload(token);
+    if (!payload) {
+      return null;
+    }
+
+    // Адаптируем под структуру вашего JWT payload
+    return {
+      role: payload.role || payload.authorities?.[0] || USER_ROLES.USER,
+      userId: payload.sub || payload.userId || payload.id || "",
+    };
   } catch {
+    console.error("Error extracting user from token");
     return null;
   }
 }
@@ -65,7 +111,7 @@ async function decodeToken(token: string): Promise<{ role: string } | null> {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = getAuthToken(request);
-  const user = token ? await decodeToken(token) : null;
+  const user = token ? getUserFromToken(token) : null;
 
   // Проверяем публичные роуты
   const isPublicRoute = publicRoutes.some((route) =>
@@ -125,6 +171,7 @@ export async function middleware(request: NextRequest) {
       "/api/auth/register",
       "/api/auth/forgot-password",
       "/api/auth/reset-password",
+      "/api/auth/refresh",
       "/api/catalog",
     ];
 
@@ -132,7 +179,7 @@ export async function middleware(request: NextRequest) {
       pathStartsWith(pathname, route),
     );
 
-    if (!isPublicApi && !token) {
+    if (!isPublicApi && !user) {
       return NextResponse.json(
         { error: "Unauthorized", message: "Необходима авторизация" },
         { status: 401 },

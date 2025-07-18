@@ -1,100 +1,98 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail, ArrowLeft } from "lucide-react";
-import { Button, Input, FormItem, FormError, Alert } from "@/components/ui";
+import { Button, Form, Input, Alert } from "antd";
+import { MailOutlined } from "@ant-design/icons";
 import { useForgotPassword } from "@/hooks";
 import {
   forgotPasswordSchema,
   type ForgotPasswordInput,
-} from "@/utils/validation";
-import { APP_ROUTES } from "@/constants";
+} from "@/lib/utils/validation";
+import toast from "react-hot-toast";
 
 export function ForgotPasswordForm() {
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const forgotPasswordMutation = useForgotPassword();
+  const { mutate: forgotPassword, isLoading, error } = useForgotPassword();
 
   const {
-    register,
     handleSubmit,
-    formState: { errors },
-    getValues,
+    control,
+    formState: { errors, isSubmitting },
+    reset,
   } = useForm<ForgotPasswordInput>({
     resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
   });
 
-  const onSubmit = (data: ForgotPasswordInput) => {
-    forgotPasswordMutation.mutate(data, {
-      onSuccess: () => {
-        setIsSubmitted(true);
-      },
-    });
+  const onSubmit = async (data: ForgotPasswordInput) => {
+    try {
+      forgotPassword(data);
+      toast.success(
+        "Инструкции по восстановлению пароля отправлены на ваш email!",
+      );
+      reset();
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      toast.error("Ошибка при отправке инструкций");
+    }
   };
 
-  if (isSubmitted) {
-    return (
-      <div className="space-y-6">
-        <Alert
-          variant="success"
-          message="Проверьте вашу почту"
-          description={`Мы отправили инструкции по восстановлению пароля на ${getValues("email")}`}
-        />
-
-        <div className="text-center">
-          <Link href={APP_ROUTES.auth.login}>
-            <Button variant="outline" icon={<ArrowLeft className="w-4 h-4" />}>
-              Вернуться к входу
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="text-center mb-6">
-        <p className="text-gray-600 dark:text-gray-400">
-          Введите email, указанный при регистрации. Мы отправим вам инструкции
-          по восстановлению пароля.
-        </p>
-      </div>
-
-      <FormItem>
-        <Input
-          size="lg"
-          placeholder="Email"
-          type="email"
-          autoComplete="email"
-          prefix={<Mail className="w-5 h-5 text-gray-400" />}
-          error={!!errors.email}
-          {...register("email")}
-        />
-        <FormError error={errors.email?.message} />
-      </FormItem>
-
-      <Button
-        htmlType="submit"
-        variant="primary"
-        size="lg"
-        fullWidth
-        loading={forgotPasswordMutation.isPending}
+    <div className="w-full max-w-md mx-auto">
+      <Form
+        layout="vertical"
+        onFinish={handleSubmit(onSubmit)}
+        className="space-y-4"
       >
-        Отправить инструкции
-      </Button>
+        {error && (
+          <Alert
+            message="Ошибка"
+            description={
+              error.message || "Произошла ошибка при отправке инструкций"
+            }
+            type="error"
+            showIcon
+            className="mb-4"
+          />
+        )}
 
-      <div className="text-center">
-        <Link
-          href={APP_ROUTES.auth.login}
-          className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors inline-flex items-center gap-2"
+        <Form.Item
+          label="Email"
+          validateStatus={errors.email ? "error" : ""}
+          help={errors.email?.message}
+          required
         >
-          <ArrowLeft className="w-4 h-4" />
-          Вернуться к входу
-        </Link>
-      </div>
-    </form>
+          <Controller
+            control={control}
+            name="email"
+            render={({ field }) => (
+              <Input
+                {...field}
+                type="email"
+                placeholder="Введите ваш email"
+                prefix={<MailOutlined className="text-gray-400" />}
+                size="large"
+                disabled={isLoading || isSubmitting}
+              />
+            )}
+          />
+        </Form.Item>
+
+        <Form.Item>
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={isLoading || isSubmitting}
+            disabled={isLoading || isSubmitting}
+            size="large"
+            className="w-full"
+          >
+            {isLoading || isSubmitting ? "Отправка..." : "Восстановить пароль"}
+          </Button>
+        </Form.Item>
+      </Form>
+    </div>
   );
 }

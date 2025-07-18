@@ -1,201 +1,219 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react";
-import { Button, Input, FormItem, FormError, Checkbox } from "@/components/ui";
+import { Button, Form, Input, Alert, Space } from "antd";
+import {
+  EyeInvisibleOutlined,
+  EyeTwoTone,
+  UserOutlined,
+  LockOutlined,
+  MailOutlined,
+  PhoneOutlined,
+} from "@ant-design/icons";
 import { useRegister } from "@/hooks";
-import { registerSchema, type RegisterInput } from "@/utils/validation";
-import { APP_ROUTES } from "@/constants";
+import { registerSchema, type RegisterInput } from "@/lib/utils/validation";
+import toast from "react-hot-toast";
 
 export function RegisterForm() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [acceptTerms, setAcceptTerms] = useState(false);
-  const registerMutation = useRegister();
+  const { mutate: register, isLoading, error } = useRegister();
 
   const {
-    register,
+    control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
+    reset,
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      confirmPassword: "",
+      firstName: "",
+      lastName: "",
+      phone: "",
+    },
   });
 
-  const onSubmit = (data: RegisterInput) => {
-    if (!acceptTerms) {
-      return;
+  const onSubmit = async (data: RegisterInput) => {
+    try {
+      register(data);
+      toast.success("Регистрация успешна! Проверьте email для подтверждения.");
+      reset();
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast.error("Ошибка регистрации");
     }
-    registerMutation.mutate(data);
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormItem>
-          <Input
-            placeholder="Имя"
-            autoComplete="given-name"
-            prefix={<User className="w-5 h-5 text-gray-400" />}
-            error={!!errors.firstName}
-            {...register("firstName")}
-          />
-          <FormError error={errors.firstName?.message} />
-        </FormItem>
-
-        <FormItem>
-          <Input
-            placeholder="Фамилия"
-            autoComplete="family-name"
-            prefix={<User className="w-5 h-5 text-gray-400" />}
-            error={!!errors.lastName}
-            {...register("lastName")}
-          />
-          <FormError error={errors.lastName?.message} />
-        </FormItem>
-      </div>
-
-      <FormItem>
-        <Input
-          placeholder="Email"
-          type="email"
-          autoComplete="email"
-          prefix={<Mail className="w-5 h-5 text-gray-400" />}
-          error={!!errors.email}
-          {...register("email")}
-        />
-        <FormError error={errors.email?.message} />
-      </FormItem>
-
-      <FormItem>
-        <Input
-          placeholder="Телефон (необязательно)"
-          type="tel"
-          autoComplete="tel"
-          prefix={<Phone className="w-5 h-5 text-gray-400" />}
-          error={!!errors.phone}
-          {...register("phone")}
-        />
-        <FormError error={errors.phone?.message} />
-      </FormItem>
-
-      <FormItem>
-        <Input
-          placeholder="Пароль"
-          type={showPassword ? "text" : "password"}
-          autoComplete="new-password"
-          prefix={<Lock className="w-5 h-5 text-gray-400" />}
-          suffix={
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              {showPassword ? (
-                <EyeOff className="w-5 h-5" />
-              ) : (
-                <Eye className="w-5 h-5" />
-              )}
-            </button>
-          }
-          error={!!errors.password}
-          {...register("password")}
-        />
-        <FormError error={errors.password?.message} />
-      </FormItem>
-
-      <FormItem>
-        <Input
-          placeholder="Подтвердите пароль"
-          type={showConfirmPassword ? "text" : "password"}
-          autoComplete="new-password"
-          prefix={<Lock className="w-5 h-5 text-gray-400" />}
-          suffix={
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              {showConfirmPassword ? (
-                <EyeOff className="w-5 h-5" />
-              ) : (
-                <Eye className="w-5 h-5" />
-              )}
-            </button>
-          }
-          error={!!errors.confirmPassword}
-          {...register("confirmPassword")}
-        />
-        <FormError error={errors.confirmPassword?.message} />
-      </FormItem>
-
-      <div className="space-y-4">
-        <label className="flex items-start gap-2 cursor-pointer">
-          <Checkbox
-            checked={acceptTerms}
-            onChange={(e) => setAcceptTerms(e.target.checked)}
-            className="mt-0.5"
-          />
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            Я согласен с{" "}
-            <Link href="/#terms" className="text-primary hover:underline">
-              условиями использования
-            </Link>{" "}
-            и{" "}
-            <Link href="/#privacy" className="text-primary hover:underline">
-              политикой конфиденциальности
-            </Link>
-          </span>
-        </label>
-
-        {!acceptTerms && (
-          <p className="text-sm text-error">
-            Необходимо принять условия использования
-          </p>
-        )}
-      </div>
-
-      <Button
-        htmlType="submit"
-        variant="primary"
-        size="lg"
-        fullWidth
-        loading={registerMutation.isPending}
-        disabled={!acceptTerms}
+    <div className="w-full max-w-md mx-auto">
+      <Form
+        layout="vertical"
+        onFinish={handleSubmit(onSubmit)}
+        className="space-y-4"
       >
-        Зарегистрироваться
-      </Button>
+        {error && (
+          <Alert
+            message="Ошибка регистрации"
+            description={error.message || "Произошла ошибка при регистрации"}
+            type="error"
+            showIcon
+            className="mb-4"
+          />
+        )}
 
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-300 dark:border-gray-700" />
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white dark:bg-gray-900 text-gray-500">
-            или
-          </span>
-        </div>
-      </div>
+        <Space direction="horizontal" className="w-full">
+          <Form.Item
+            label="Имя"
+            validateStatus={errors.firstName ? "error" : ""}
+            help={errors.firstName?.message}
+            required
+            className="flex-1"
+          >
+            <Controller
+              control={control}
+              name="firstName"
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  placeholder="Ваше имя"
+                  prefix={<UserOutlined className="text-gray-400" />}
+                  size="large"
+                  disabled={isLoading || isSubmitting}
+                />
+              )}
+            />
+          </Form.Item>
 
-      <Link href={APP_ROUTES.auth.registerCosmetologist}>
-        <Button htmlType="button" variant="outline" size="lg" fullWidth>
-          Регистрация косметолога
-        </Button>
-      </Link>
+          <Form.Item
+            label="Фамилия"
+            validateStatus={errors.lastName ? "error" : ""}
+            help={errors.lastName?.message}
+            required
+            className="flex-1"
+          >
+            <Controller
+              control={control}
+              name="lastName"
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  placeholder="Ваша фамилия"
+                  prefix={<UserOutlined className="text-gray-400" />}
+                  size="large"
+                  disabled={isLoading || isSubmitting}
+                />
+              )}
+            />
+          </Form.Item>
+        </Space>
 
-      <div className="text-center">
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          Уже есть аккаунт?{" "}
-        </span>
-        <Link
-          href={APP_ROUTES.auth.login}
-          className="text-sm text-primary hover:text-primary-dark transition-colors font-medium"
+        <Form.Item
+          label="Email"
+          validateStatus={errors.email ? "error" : ""}
+          help={errors.email?.message}
+          required
         >
-          Войти
-        </Link>
-      </div>
-    </form>
+          <Controller
+            control={control}
+            name="email"
+            render={({ field }) => (
+              <Input
+                {...field}
+                type="email"
+                placeholder="Введите ваш email"
+                prefix={<MailOutlined className="text-gray-400" />}
+                size="large"
+                disabled={isLoading || isSubmitting}
+              />
+            )}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="Телефон"
+          validateStatus={errors.phone ? "error" : ""}
+          help={errors.phone?.message}
+        >
+          <Controller
+            control={control}
+            name="phone"
+            render={({ field }) => (
+              <Input
+                {...field}
+                placeholder="Введите ваш телефон"
+                prefix={<PhoneOutlined className="text-gray-400" />}
+                size="large"
+                disabled={isLoading || isSubmitting}
+              />
+            )}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="Пароль"
+          validateStatus={errors.password ? "error" : ""}
+          help={errors.password?.message}
+          required
+        >
+          <Controller
+            control={control}
+            name="password"
+            render={({ field }) => (
+              <Input.Password
+                {...field}
+                placeholder="Введите пароль"
+                prefix={<LockOutlined className="text-gray-400" />}
+                size="large"
+                disabled={isLoading || isSubmitting}
+                iconRender={(visible) =>
+                  visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
+                }
+              />
+            )}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="Подтвердите пароль"
+          validateStatus={errors.confirmPassword ? "error" : ""}
+          help={errors.confirmPassword?.message}
+          required
+        >
+          <Controller
+            control={control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <Input.Password
+                {...field}
+                placeholder="Подтвердите пароль"
+                prefix={<LockOutlined className="text-gray-400" />}
+                size="large"
+                disabled={isLoading || isSubmitting}
+                iconRender={(visible) =>
+                  visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
+                }
+              />
+            )}
+          />
+        </Form.Item>
+
+        <Form.Item>
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={isLoading || isSubmitting}
+            disabled={isLoading || isSubmitting}
+            size="large"
+            className="w-full"
+          >
+            {isLoading || isSubmitting
+              ? "Регистрация..."
+              : "Зарегистрироваться"}
+          </Button>
+        </Form.Item>
+      </Form>
+    </div>
   );
 }

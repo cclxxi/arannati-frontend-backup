@@ -3,6 +3,7 @@ import { cn } from "@/utils/common";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "./Button";
+import Image from "next/image";
 
 export interface ModalProps extends AntModalProps {
   variant?: "default" | "fullscreen" | "drawer";
@@ -103,6 +104,12 @@ export function ImagePreviewModal({
     setCurrentIndex(initialIndex);
   }, [initialIndex]);
 
+  // Ensure we have valid images and currentIndex
+  const currentImage = images[currentIndex];
+  if (!currentImage || images.length === 0) {
+    return null;
+  }
+
   return (
     <Modal
       open={open}
@@ -113,10 +120,13 @@ export function ImagePreviewModal({
       centered
     >
       <div className="relative">
-        <img
-          src={images[currentIndex]}
+        <Image
+          src={currentImage}
           alt={`Preview ${currentIndex + 1}`}
+          width={1200}
+          height={800}
           className="w-full h-auto max-h-[70vh] object-contain"
+          priority
         />
 
         {images.length > 1 && (
