@@ -9,6 +9,7 @@ export const API_ROUTES = {
     forgotPassword: "/auth/forgot-password",
     resetPassword: "/auth/reset-password",
     registerCosmetologist: "/auth/register/cosmetologist",
+    refresh: "/auth/refresh",
   },
 
   // Catalog

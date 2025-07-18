@@ -126,7 +126,7 @@
 /* Global styles */
 @layer base {
   * {
-    @apply border-border;
+    @apply border-gray-200 dark:border-gray-700;
   }
 
   body {

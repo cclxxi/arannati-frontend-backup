@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock } from "lucide-react";
 import { Button, Input, FormItem, FormError, Alert } from "@/components/ui";
@@ -20,8 +20,8 @@ export function ResetPasswordForm() {
   const resetPasswordMutation = useResetPassword();
 
   const {
-    register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<ResetPasswordInput>({
     resolver: zodResolver(resetPasswordSchema),
@@ -57,53 +57,65 @@ export function ResetPasswordForm() {
       </div>
 
       <FormItem>
-        <Input
-          size="lg"
-          placeholder="Новый пароль"
-          type={showPassword ? "text" : "password"}
-          autoComplete="new-password"
-          prefix={<Lock className="w-5 h-5 text-gray-400" />}
-          suffix={
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              {showPassword ? (
-                <EyeOff className="w-5 h-5" />
-              ) : (
-                <Eye className="w-5 h-5" />
-              )}
-            </button>
-          }
-          error={!!errors.password}
-          {...register("password")}
+        <Controller
+          control={control}
+          name="password"
+          render={({ field }) => (
+            <Input
+              {...field}
+              size="lg"
+              placeholder="Новый пароль"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              prefix={<Lock className="w-5 h-5 text-gray-400" />}
+              suffix={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              }
+              error={!!errors.password}
+            />
+          )}
         />
         <FormError error={errors.password?.message} />
       </FormItem>
 
       <FormItem>
-        <Input
-          size="lg"
-          placeholder="Подтвердите пароль"
-          type={showConfirmPassword ? "text" : "password"}
-          autoComplete="new-password"
-          prefix={<Lock className="w-5 h-5 text-gray-400" />}
-          suffix={
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              {showConfirmPassword ? (
-                <EyeOff className="w-5 h-5" />
-              ) : (
-                <Eye className="w-5 h-5" />
-              )}
-            </button>
-          }
-          error={!!errors.confirmPassword}
-          {...register("confirmPassword")}
+        <Controller
+          control={control}
+          name="confirmPassword"
+          render={({ field }) => (
+            <Input
+              {...field}
+              size="lg"
+              placeholder="Подтвердите пароль"
+              type={showConfirmPassword ? "text" : "password"}
+              autoComplete="new-password"
+              prefix={<Lock className="w-5 h-5 text-gray-400" />}
+              suffix={
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              }
+              error={!!errors.confirmPassword}
+            />
+          )}
         />
         <FormError error={errors.confirmPassword?.message} />
       </FormItem>

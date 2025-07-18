@@ -3,9 +3,9 @@ import { API_ROUTES } from "@/constants";
 import type {
   LoginInput,
   RegisterInput,
-  CosmetologistRegisterInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  CosmetologistRegisterInput,
 } from "@/lib/utils/validation";
 import type { UserDTO } from "@/types/api";
 
@@ -54,29 +54,32 @@ export const authApi = {
   },
 
   // Регистрация косметолога
-  registerCosmetologist: async (
-    data: CosmetologistRegisterInput,
-  ): Promise<RegisterResponse> => {
+  registerCosmetologist: async (data: CosmetologistRegisterInput) => {
     const formData = new FormData();
 
-    // Добавляем данные в FormData
-    const { diplomaFile, ...jsonData } = data;
-    formData.append("data", JSON.stringify(jsonData));
+    // Extract the diploma file and confirmPassword
+    const { diplomaFile, ...registrationData } = data;
 
+    // Add the JSON data as a Blob with a proper content type for the 'data' part
+    const jsonBlob = new Blob([JSON.stringify(registrationData)], {
+      type: "application/json",
+    });
+    formData.append("data", jsonBlob);
+
+    // Add the diploma file as the 'diplomaFile' part
     if (diplomaFile) {
       formData.append("diplomaFile", diplomaFile);
     }
 
-    const response = await apiClient.post<RegisterResponse>(
+    const response = await apiClient.post(
       API_ROUTES.auth.registerCosmetologist,
       formData,
       {
         headers: {
-          "Content-Type": "multipart/form-data",
+          // Don't set Content-Type manually - let the browser set it with boundary
         },
       },
     );
-
     return response.data;
   },
 
