@@ -60,10 +60,51 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
-    shortcut: "/favicon-16x16.png",
-    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
   },
 };
+
+// Компонент для инициализации темы до рендера
+function ThemeScript() {
+  const themeScript = `
+    (function() {
+      try {
+        const storageKey = 'theme-storage';
+        const savedTheme = localStorage.getItem(storageKey);
+        let theme = 'system';
+        
+        if (savedTheme) {
+          const parsed = JSON.parse(savedTheme);
+          theme = parsed.state?.theme || 'system';
+        }
+        
+        let resolved = theme;
+        if (theme === 'system') {
+          resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        
+        document.documentElement.classList.add(resolved);
+        document.documentElement.setAttribute('data-theme', resolved);
+        
+        // Устанавливаем meta тег для мобильных браузеров с цветами Arannati
+        const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (metaThemeColor) {
+          metaThemeColor.setAttribute('content', resolved === 'dark' ? '#2a3a33' : '#efe9df');
+        }
+      } catch (e) {
+        console.error('Failed to initialize theme:', e);
+      }
+    })();
+  `;
+
+  return (
+    <script
+      dangerouslySetInnerHTML={{ __html: themeScript }}
+      suppressHydrationWarning
+    />
+  );
+}
 
 export default function RootLayout({
   children,
@@ -72,7 +113,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body className={inter.className}>
+      <head>
+        <ThemeScript />
+        <title></title>
+      </head>
+      <body className={inter.className} suppressHydrationWarning>
         <ThemeProvider>
           <QueryProvider>
             <AuthProvider>
@@ -83,24 +128,10 @@ export default function RootLayout({
                     <Toaster
                       position="top-right"
                       toastOptions={{
-                        duration: 3000,
+                        duration: 4000,
                         style: {
-                          background: "#363636",
-                          color: "#fff",
-                          borderRadius: "8px",
-                        },
-                        className: "dark:bg-gray-800 dark:text-white",
-                        success: {
-                          iconTheme: {
-                            primary: "#4CAF50",
-                            secondary: "#fff",
-                          },
-                        },
-                        error: {
-                          iconTheme: {
-                            primary: "#F44336",
-                            secondary: "#fff",
-                          },
+                          background: "var(--color-surface)",
+                          color: "var(--color-text-primary)",
                         },
                       }}
                     />

@@ -1,27 +1,33 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Custom CSS Variables for theming */
+/* Custom CSS Variables for Arannati brand theming */
 @layer base {
   :root {
-    /* Light theme */
-    --color-primary: 233 30 99; /* #E91E63 */
-    --color-primary-light: 248 187 208; /* #F8BBD0 */
-    --color-primary-dark: 194 24 91; /* #C2185B */
-    --color-secondary: 156 39 176; /* #9C27B0 */
-    --color-success: 76 175 80; /* #4CAF50 */
-    --color-warning: 255 193 7; /* #FFC107 */
-    --color-error: 244 67 54; /* #F44336 */
-    --color-info: 33 150 243; /* #2196F3 */
+    /* Light theme - Arannati Brand Colors */
+    --color-primary: 188 116 38; /* #bc7426 - Основной коричневый */
+    --color-primary-light: 247 236 208; /* #f7ecd0 - Светло-бежевый */
+    --color-primary-dark: 144 86 48; /* #905630 - Темно-коричневый */
+    --color-secondary: 178 206 192; /* #b2cec0 - Мятный */
+    --color-accent: 42 58 51; /* #2a3a33 - Темно-зеленый */
 
-    --color-background: 255 255 255; /* white */
-    --color-surface: 255 245 247; /* #FFF5F7 */
-    --color-text-primary: 33 33 33; /* #212121 */
-    --color-text-secondary: 117 117 117; /* #757575 */
+    /* Semantic colors */
+    --color-success: 178 206 192; /* #b2cec0 - Мятный для успеха */
+    --color-warning: 247 236 208; /* #f7ecd0 - Светлый для предупреждений */
+    --color-error: 220 38 38; /* Красный для ошибок */
+    --color-info: 188 116 38; /* #bc7426 - Коричневый для информации */
+
+    /* Layout colors */
+    --color-background: 239 233 223; /* #efe9df - Основной фон */
+    --color-surface: 247 236 208; /* #f7ecd0 - Поверхности */
+    --color-text-primary: 42 58 51; /* #2a3a33 - Основной текст */
+    --color-text-secondary: 144 86 48; /* #905630 - Вторичный текст */
 
     /* Shadows */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --shadow-sm: 0 1px 2px 0 rgb(42 58 51 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(42 58 51 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(42 58 51 / 0.1);
 
     /* Border radius */
     --radius-sm: 0.25rem;
@@ -31,53 +37,50 @@
   }
 
   .dark {
-    /* Dark theme */
-    --color-primary: 255 64 129; /* #FF4081 */
-    --color-primary-light: 255 128 171; /* #FF80AB */
-    --color-primary-dark: 245 0 87; /* #F50057 */
-    --color-secondary: 225 190 231; /* #E1BEE7 */
+    /* Dark theme - Inverted Arannati colors */
+    --color-primary: 247 236 208; /* #f7ecd0 - Светлый в темной теме */
+    --color-primary-light: 239 233 223; /* #efe9df */
+    --color-primary-dark: 188 116 38; /* #bc7426 */
+    --color-secondary: 178 206 192; /* #b2cec0 - Мятный остается */
+    --color-accent: 178 206 192; /* #b2cec0 - Мятный акцент */
 
-    --color-background: 26 26 46; /* #1a1a2e */
-    --color-surface: 22 33 62; /* #16213e */
-    --color-text-primary: 225 190 231; /* #E1BEE7 */
-    --color-text-secondary: 189 189 189; /* #BDBDBD */
+    /* Dark theme specific */
+    --color-background: 42 58 51; /* #2a3a33 - Темно-зеленый фон */
+    --color-surface: 50 68 60; /* Чуть светлее фона */
+    --color-text-primary: 239 233 223; /* #efe9df - Светлый текст */
+    --color-text-secondary: 247 236 208; /* #f7ecd0 - Вторичный светлый текст */
+
+    /* Semantic colors for dark theme */
+    --color-success: 178 206 192; /* #b2cec0 */
+    --color-warning: 247 236 208; /* #f7ecd0 */
+    --color-error: 239 68 68; /* Светло-красный для темной темы */
+    --color-info: 247 236 208; /* #f7ecd0 */
   }
 }
 
-/* Tailwind CSS v4 theme configuration */
-@theme {
-  /* Colors */
-  --color-primary: var(--color-primary);
-  --color-primary-light: var(--color-primary-light);
-  --color-primary-dark: var(--color-primary-dark);
-  --color-secondary: var(--color-secondary);
-  --color-success: var(--color-success);
-  --color-warning: var(--color-warning);
-  --color-error: var(--color-error);
-  --color-info: var(--color-info);
-  --color-background: var(--color-background);
-  --color-surface: var(--color-surface);
-  --color-text-primary: var(--color-text-primary);
-  --color-text-secondary: var(--color-text-secondary);
+/* Custom font - Proxima Nova */
+@font-face {
+  font-family: "Proxima Nova";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local("Proxima Nova Regular"), local("ProximaNova-Regular");
+}
 
-  /* Font families */
-  --font-family-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
-  --font-family-mono:
-    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New",
-    monospace;
+@font-face {
+  font-family: "Proxima Nova";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local("Proxima Nova Semibold"), local("ProximaNova-Semibold");
+}
 
-  /* Animations */
-  --animate-fade-in: fade-in 0.3s ease-in-out;
-  --animate-slide-up: slide-up 0.3s ease-out;
-  --animate-slide-down: slide-down 0.3s ease-out;
-  --animate-scale-in: scale-in 0.2s ease-out;
-
-  /* Transitions */
-  --transition-base: all 0.2s ease;
-  --transition-fast: all 0.15s ease;
-  --transition-slow: all 0.3s ease;
+@font-face {
+  font-family: "Proxima Nova";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local("Proxima Nova Bold"), local("ProximaNova-Bold");
 }
 
 /* Custom animations */
@@ -131,12 +134,19 @@
 
   body {
     @apply bg-background text-text-primary;
+    font-family:
+      "Proxima Nova",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
   }
 
-  /* Custom scrollbar */
+  /* Custom scrollbar with brand colors */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -147,57 +157,66 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-primary/20 rounded-full;
+    @apply bg-primary/40 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary/30;
+    @apply bg-primary/60;
   }
 }
 
 /* Utility classes for animations */
 @layer utilities {
   .animate-fade-in {
-    animation: var(--animate-fade-in);
+    animation: fade-in 0.3s ease-in-out;
   }
 
   .animate-slide-up {
-    animation: var(--animate-slide-up);
+    animation: slide-up 0.3s ease-out;
   }
 
   .animate-slide-down {
-    animation: var(--animate-slide-down);
+    animation: slide-down 0.3s ease-out;
   }
 
   .animate-scale-in {
-    animation: var(--animate-scale-in);
+    animation: scale-in 0.2s ease-out;
   }
 
-  /* Text gradient */
+  /* Text gradient with brand colors */
   .text-gradient {
     @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
   }
 
-  /* Glass effect */
+  /* Brand gradient backgrounds */
+  .gradient-primary {
+    @apply bg-gradient-to-r from-primary-dark via-primary to-secondary;
+  }
+
+  .gradient-warm {
+    @apply bg-gradient-to-br from-primary-light via-surface to-secondary;
+  }
+
+  /* Glass effect with brand colors */
   .glass {
-    @apply bg-white/10 backdrop-blur-md border border-white/20;
+    @apply bg-surface/30 backdrop-blur-md border border-primary/20;
   }
 
   .glass-dark {
-    @apply bg-black/10 backdrop-blur-md border border-black/20;
+    @apply bg-accent/30 backdrop-blur-md border border-secondary/20;
   }
 
   /* Transitions */
   .transition-base {
-    transition: var(--transition-base);
+    transition: all 0.2s ease;
   }
 
   .transition-fast {
-    transition: var(--transition-fast);
+    transition: all 0.15s ease;
   }
 
   .transition-slow {
-    transition: var(--transition-slow);
+    transition: all 0.3s ease;
   }
 
   /* Hover effects */
@@ -209,18 +228,38 @@
     @apply transition-transform duration-200 hover:scale-105;
   }
 
-  /* Focus styles */
+  /* Focus styles with brand colors */
   .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-background;
+    @apply focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900;
   }
 }
 
-/* Ant Design overrides */
+/* Ant Design overrides with Arannati colors */
 @layer components {
   /* Override Ant Design primary color */
   :root {
     --ant-primary-color: rgb(var(--color-primary));
     --ant-primary-color-hover: rgb(var(--color-primary-light));
     --ant-primary-color-active: rgb(var(--color-primary-dark));
+  }
+
+  /* Fix for Ant Design components in dark mode */
+  .dark {
+    --ant-primary-color: rgb(var(--color-primary));
+    --ant-primary-color-hover: rgb(var(--color-primary-light));
+    --ant-primary-color-active: rgb(var(--color-primary-dark));
+  }
+
+  /* Custom button styles */
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-dark text-white transition-colors;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary hover:bg-secondary/80 text-accent transition-colors;
+  }
+
+  .btn-outline {
+    @apply border-2 border-primary text-primary hover:bg-primary hover:text-white transition-all;
   }
 }
