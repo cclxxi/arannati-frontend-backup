@@ -1,411 +1,440 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Upload, message, Divider } from "antd";
 import {
-  Upload,
-  FileText,
-  Award,
-  Building,
+  User,
   Mail,
   Lock,
-  User,
+  Phone,
+  GraduationCap,
+  Building,
+  Calendar,
+  Award,
   Eye,
   EyeOff,
+  Upload as UploadIcon,
 } from "lucide-react";
-import { Upload as AntUpload } from "antd";
-import type { UploadProps } from "antd";
-import toast from "react-hot-toast"; // Replace antd message with react-hot-toast
-import { Button, Input, FormItem, FormError, Select } from "@/components/ui";
-import { useRegisterCosmetologist } from "@/hooks";
-import {
-  cosmetologistRegisterSchema,
-  type CosmetologistRegisterInput,
-} from "@/utils/validation";
+import { Button, Input, FormItem, FormError, notify } from "@/components/ui";
 import { APP_ROUTES } from "@/constants";
-import { config } from "@/lib/config";
+import type { UploadFile, RcFile } from "antd/es/upload";
+import { useRegisterCosmetologist } from "@/hooks";
 
-const currentYear = new Date().getFullYear();
-const graduationYears = Array.from(
-  { length: currentYear - 1990 + 1 },
-  (_, i) => ({
-    value: currentYear - i,
-    label: String(currentYear - i),
-  }),
-);
+// Define an error type for better type safety
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
+// Schema валидации
+const registrationSchema = z
+  .object({
+    email: z.email("Некорректный email"),
+    password: z
+      .string()
+      .min(6, "Пароль должен содержать минимум 6 символов")
+      .max(50, "Пароль слишком длинный"),
+    confirmPassword: z.string(),
+    firstName: z
+      .string()
+      .min(2, "Имя должно содержать минимум 2 символа")
+      .max(50, "Имя слишком длинное"),
+    lastName: z
+      .string()
+      .min(2, "Фамилия должна содержать минимум 2 символа")
+      .max(50, "Фамилия слишком длинная"),
+    phone: z
+      .string()
+      .regex(/^\+?[1-9]\d{1,14}$/, "Некорректный формат телефона"),
+    institutionName: z
+      .string()
+      .min(1, "Введите название учебного заведения")
+      .max(255, "Название слишком длинное"),
+    graduationYear: z
+      .number()
+      .min(1990, "Год окончания не может быть раньше 1990")
+      .max(
+        new Date().getFullYear(),
+        `Год окончания не может быть позже ${new Date().getFullYear()}`,
+      ),
+    specialization: z
+      .string()
+      .min(1, "Введите специализацию")
+      .max(255, "Специализация слишком длинная"),
+    licenseNumber: z.string().optional(),
+    diplomaFile: z.instanceof(File, { message: "Загрузите диплом" }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Пароли не совпадают",
+    path: ["confirmPassword"],
+  });
+
+type FormData = z.infer<typeof registrationSchema>;
 
 export function CosmetologistRegisterForm() {
-  const [diplomaFile, setDiplomaFile] = useState<File | null>(null);
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const registerMutation = useRegisterCosmetologist();
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+
+  const { mutate: register, isPending } = useRegisterCosmetologist();
 
   const {
-    handleSubmit,
-    setValue,
     control,
-    formState: { errors, isSubmitting },
-  } = useForm<CosmetologistRegisterInput>({
-    resolver: zodResolver(cosmetologistRegisterSchema),
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    clearErrors,
+  } = useForm<FormData>({
+    resolver: zodResolver(registrationSchema),
     defaultValues: {
-      email: "",
-      password: "",
-      confirmPassword: "",
-      firstName: "",
-      lastName: "",
-      institutionName: "",
-      graduationYear: undefined,
-      specialization: "",
-      licenseNumber: "",
+      graduationYear: new Date().getFullYear(),
     },
   });
 
-  const uploadProps: UploadProps = {
-    accept: ".pdf,.jpg,.jpeg,.png",
-    maxCount: 1,
-    beforeUpload: async (file) => {
-      // Check file type
-      const isValidType = [
-        "application/pdf",
-        "image/jpeg",
-        "image/png",
-        "image/jpg",
-      ].includes(file.type);
-      if (!isValidType) {
-        toast.error("Можно загружать только PDF, JPG или PNG файлы!");
-        return false;
-      }
-
-      // Check file size
-      const isValidSize = file.size / 1024 / 1024 < config.upload.maxFileSize;
-      if (!isValidSize) {
-        toast.error(`Файл должен быть меньше ${config.upload.maxFileSize}MB!`);
-        return false;
-      }
-
-      // Check file name length
-      if (file.name.length > 100) {
-        toast.error("Имя файла слишком длинное!");
-        return false;
-      }
-
-      setDiplomaFile(file);
-      setValue("diplomaFile", file);
-      return false; // Prevent auto upload
-    },
-    onRemove: () => {
-      setDiplomaFile(null);
-      setValue("diplomaFile", undefined);
-    },
-  };
-
-  const onSubmit = async (data: CosmetologistRegisterInput) => {
-    // Diploma is required for cosmetologist registration
-    if (!diplomaFile) {
-      toast.error("Необходимо загрузить диплом или сертификат");
-      return;
-    }
-
-    // Pass the original data object with the file
-    const submitData = {
-      ...data,
-      diplomaFile,
-    };
-
-    registerMutation.mutate(submitData, {
-      onError: (error: unknown) => {
-        console.error("Registration error:", error);
-        toast.error("Ошибка при регистрации. Попробуйте еще раз.");
-      },
+  const onSubmit = (data: FormData) => {
+    register(data, {
       onSuccess: () => {
-        toast.success("Заявка успешно отправлена!");
+        notify.success(
+          "Заявка отправлена! Мы проверим ваши данные и свяжемся с вами.",
+        );
+        router.push(APP_ROUTES.auth.login);
+      },
+      onError: (error: ApiError) => {
+        notify.error(error.response?.data?.message || "Ошибка при регистрации");
       },
     });
   };
 
-  const isFormDisabled = isSubmitting || registerMutation.isPending;
+  const isFormDisabled = isPending;
+
+  const uploadProps = {
+    maxCount: 1,
+    fileList,
+    beforeUpload: async (file: RcFile) => {
+      const isImage = file.type.startsWith("image/");
+      const isPDF = file.type === "application/pdf";
+
+      if (!isImage && !isPDF) {
+        message.error("Можно загрузить только изображения или PDF!");
+        return false;
+      }
+
+      const isLt5M = file.size / 1024 / 1024 < 10;
+      if (!isLt5M) {
+        message.error("Файл должен быть меньше 10MB!");
+        return false;
+      }
+
+      setValue("diplomaFile", file);
+      clearErrors("diplomaFile");
+      setFileList([
+        {
+          uid: file.uid || "-1",
+          name: file.name,
+          status: "done" as const,
+          originFileObj: file,
+        },
+      ]);
+      return false;
+    },
+    onRemove: () => {
+      setValue("diplomaFile", undefined as unknown as File);
+      setFileList([]);
+    },
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-        <p className="text-sm text-blue-800 dark:text-blue-200">
-          <strong>Для косметологов:</strong> После регистрации ваша заявка будет
-          проверена администратором в течение 3 рабочих дней. Вы получите доступ
-          к профессиональным ценам и эксклюзивным материалам.
-        </p>
-      </div>
+      {/* Личные данные */}
+      <div>
+        <h3 className="text-lg font-semibold text-text-primary mb-4">
+          Личные данные
+        </h3>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormItem>
+              <Controller
+                control={control}
+                name="firstName"
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    placeholder="Имя"
+                    prefix={<User className="w-5 h-5 text-gray-400" />}
+                    error={!!errors.firstName}
+                    disabled={isFormDisabled}
+                  />
+                )}
+              />
+              <FormError error={errors.firstName?.message} />
+            </FormItem>
 
-      {/* Personal Information */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Личная информация</h3>
+            <FormItem>
+              <Controller
+                control={control}
+                name="lastName"
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    placeholder="Фамилия"
+                    prefix={<User className="w-5 h-5 text-gray-400" />}
+                    error={!!errors.lastName}
+                    disabled={isFormDisabled}
+                  />
+                )}
+              />
+              <FormError error={errors.lastName?.message} />
+            </FormItem>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormItem>
             <Controller
               control={control}
-              name="firstName"
+              name="email"
               render={({ field }) => (
                 <Input
                   {...field}
-                  placeholder="Имя"
-                  prefix={<User className="w-5 h-5 text-gray-400" />}
-                  error={!!errors.firstName}
+                  placeholder="Email"
+                  type="email"
+                  autoComplete="email"
+                  prefix={<Mail className="w-5 h-5 text-gray-400" />}
+                  error={!!errors.email}
                   disabled={isFormDisabled}
                 />
               )}
             />
-            <FormError error={errors.firstName?.message} />
+            <FormError error={errors.email?.message} />
           </FormItem>
 
           <FormItem>
             <Controller
               control={control}
-              name="lastName"
+              name="phone"
               render={({ field }) => (
                 <Input
                   {...field}
-                  placeholder="Фамилия"
-                  prefix={<User className="w-5 h-5 text-gray-400" />}
-                  error={!!errors.lastName}
+                  placeholder="Телефон (+7...)"
+                  type="tel"
+                  prefix={<Phone className="w-5 h-5 text-gray-400" />}
+                  error={!!errors.phone}
                   disabled={isFormDisabled}
                 />
               )}
             />
-            <FormError error={errors.lastName?.message} />
+            <FormError error={errors.phone?.message} />
           </FormItem>
         </div>
-
-        <FormItem>
-          <Controller
-            control={control}
-            name="email"
-            render={({ field }) => (
-              <Input
-                {...field}
-                placeholder="Email"
-                type="email"
-                autoComplete="email"
-                prefix={<Mail className="w-5 h-5 text-gray-400" />}
-                error={!!errors.email}
-                disabled={isFormDisabled}
-              />
-            )}
-          />
-          <FormError error={errors.email?.message} />
-        </FormItem>
-
-        <FormItem>
-          <Controller
-            control={control}
-            name="password"
-            render={({ field }) => (
-              <Input
-                {...field}
-                placeholder="Пароль"
-                type={showPassword ? "text" : "password"}
-                autoComplete="new-password"
-                prefix={<Lock className="w-5 h-5 text-gray-400" />}
-                suffix={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                    disabled={isFormDisabled}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                }
-                error={!!errors.password}
-                disabled={isFormDisabled}
-              />
-            )}
-          />
-          <FormError error={errors.password?.message} />
-        </FormItem>
-
-        <FormItem>
-          <Controller
-            control={control}
-            name="confirmPassword"
-            render={({ field }) => (
-              <Input
-                {...field}
-                placeholder="Подтвердите пароль"
-                type={showConfirmPassword ? "text" : "password"}
-                autoComplete="new-password"
-                prefix={<Lock className="w-5 h-5 text-gray-400" />}
-                suffix={
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                    disabled={isFormDisabled}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                }
-                error={!!errors.confirmPassword}
-                disabled={isFormDisabled}
-              />
-            )}
-          />
-          <FormError error={errors.confirmPassword?.message} />
-        </FormItem>
       </div>
 
-      {/* Professional Information */}
-      <div className="border-t pt-6 space-y-4">
-        <h3 className="text-lg font-medium">Профессиональная информация</h3>
+      <Divider />
 
-        <FormItem>
-          <Controller
-            control={control}
-            name="institutionName"
-            render={({ field }) => (
-              <Input
-                {...field}
-                placeholder="Учебное заведение"
-                prefix={<Building className="w-5 h-5 text-gray-400" />}
-                error={!!errors.institutionName}
-                disabled={isFormDisabled}
+      {/* Пароль */}
+      <div>
+        <h3 className="text-lg font-semibold text-text-primary mb-4">
+          Создайте пароль
+        </h3>
+        <div className="space-y-4">
+          <FormItem>
+            <Controller
+              control={control}
+              name="password"
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  placeholder="Пароль"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  prefix={<Lock className="w-5 h-5 text-gray-400" />}
+                  suffix={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      disabled={isFormDisabled}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
+                  }
+                  error={!!errors.password}
+                  disabled={isFormDisabled}
+                />
+              )}
+            />
+            <FormError error={errors.password?.message} />
+          </FormItem>
+
+          <FormItem>
+            <Controller
+              control={control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  placeholder="Подтвердите пароль"
+                  type={showConfirmPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  prefix={<Lock className="w-5 h-5 text-gray-400" />}
+                  suffix={
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      disabled={isFormDisabled}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
+                  }
+                  error={!!errors.confirmPassword}
+                  disabled={isFormDisabled}
+                />
+              )}
+            />
+            <FormError error={errors.confirmPassword?.message} />
+          </FormItem>
+        </div>
+      </div>
+
+      <Divider />
+
+      {/* Профессиональные данные */}
+      <div>
+        <h3 className="text-lg font-semibold text-text-primary mb-4">
+          Профессиональные данные
+        </h3>
+        <div className="space-y-4">
+          <FormItem>
+            <Controller
+              control={control}
+              name="institutionName"
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  placeholder="Учебное заведение"
+                  prefix={<Building className="w-5 h-5 text-gray-400" />}
+                  error={!!errors.institutionName}
+                  disabled={isFormDisabled}
+                />
+              )}
+            />
+            <FormError error={errors.institutionName?.message} />
+          </FormItem>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormItem>
+              <Controller
+                control={control}
+                name="graduationYear"
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    placeholder="Год окончания"
+                    type="number"
+                    min={1990}
+                    max={new Date().getFullYear()}
+                    prefix={<Calendar className="w-5 h-5 text-gray-400" />}
+                    error={!!errors.graduationYear}
+                    disabled={isFormDisabled}
+                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  />
+                )}
               />
-            )}
-          />
-          <FormError error={errors.institutionName?.message} />
-        </FormItem>
+              <FormError error={errors.graduationYear?.message} />
+            </FormItem>
 
-        <FormItem>
-          <Controller
-            control={control}
-            name="graduationYear"
-            render={({ field }) => (
-              <Select
-                placeholder="Год окончания"
-                options={graduationYears}
-                value={field.value}
-                onChange={field.onChange}
-                disabled={isFormDisabled}
-                status={errors.graduationYear ? "error" : undefined}
-                className={errors.graduationYear ? "border-red-500" : ""}
+            <FormItem>
+              <Controller
+                control={control}
+                name="licenseNumber"
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    placeholder="Номер лицензии (опционально)"
+                    prefix={<Award className="w-5 h-5 text-gray-400" />}
+                    error={!!errors.licenseNumber}
+                    disabled={isFormDisabled}
+                  />
+                )}
               />
-            )}
-          />
-          <FormError error={errors.graduationYear?.message} />
-        </FormItem>
+              <FormError error={errors.licenseNumber?.message} />
+            </FormItem>
+          </div>
 
-        <FormItem>
-          <Controller
-            control={control}
-            name="specialization"
-            render={({ field }) => (
-              <Input
-                {...field}
-                placeholder="Специализация (необязательно)"
-                prefix={<Award className="w-5 h-5 text-gray-400" />}
-                error={!!errors.specialization}
-                disabled={isFormDisabled}
-              />
-            )}
-          />
-          <FormError error={errors.specialization?.message} />
-        </FormItem>
+          <FormItem>
+            <Controller
+              control={control}
+              name="specialization"
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  placeholder="Специализация"
+                  prefix={<GraduationCap className="w-5 h-5 text-gray-400" />}
+                  error={!!errors.specialization}
+                  disabled={isFormDisabled}
+                />
+              )}
+            />
+            <FormError error={errors.specialization?.message} />
+          </FormItem>
 
-        <FormItem>
-          <Controller
-            control={control}
-            name="licenseNumber"
-            render={({ field }) => (
-              <Input
-                {...field}
-                placeholder="Номер лицензии (необязательно)"
-                prefix={<FileText className="w-5 h-5 text-gray-400" />}
-                error={!!errors.licenseNumber}
-                disabled={isFormDisabled}
-              />
-            )}
-          />
-          <FormError error={errors.licenseNumber?.message} />
-        </FormItem>
-
-        <FormItem>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Диплом или сертификат <span className="text-red-500">*</span>
-          </label>
-          <AntUpload.Dragger
-            {...uploadProps}
-            disabled={isFormDisabled}
-            className={isFormDisabled ? "cursor-not-allowed opacity-50" : ""}
-          >
-            <p className="ant-upload-drag-icon">
-              <Upload className="w-12 h-12 mx-auto text-gray-400" />
-            </p>
-            <p className="ant-upload-text">
-              Нажмите или перетащите файл для загрузки
-            </p>
-            <p className="ant-upload-hint">
-              Поддерживаются форматы PDF, JPG, PNG. Максимальный размер{" "}
-              {config.upload.maxFileSize}MB
-            </p>
-          </AntUpload.Dragger>
-
-          {diplomaFile && (
-            <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-md">
-              <p className="text-sm text-green-600 dark:text-green-400">
-                ✓ Файл загружен: {diplomaFile.name}
+          <FormItem>
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              Диплом или сертификат
+            </label>
+            <Upload.Dragger {...uploadProps} disabled={isFormDisabled}>
+              <p className="ant-upload-drag-icon">
+                <UploadIcon className="w-12 h-12 text-gray-400 mx-auto" />
               </p>
-            </div>
-          )}
-
-          {!diplomaFile && (
-            <p className="mt-2 text-sm text-red-500">
-              Загрузка диплома обязательна для регистрации косметолога
-            </p>
-          )}
-        </FormItem>
+              <p className="ant-upload-text">
+                Нажмите или перетащите файл для загрузки
+              </p>
+              <p className="ant-upload-hint">
+                Поддерживаются изображения (JPG, PNG) или PDF до 10MB
+              </p>
+            </Upload.Dragger>
+            <FormError error={errors.diplomaFile?.message} />
+          </FormItem>
+        </div>
       </div>
 
       <Button
+        type="primary"
         htmlType="submit"
-        variant="primary"
-        size="lg"
-        fullWidth
-        loading={registerMutation.isPending}
-        disabled={isFormDisabled || !diplomaFile}
+        loading={isPending}
+        className="w-full h-12 text-base"
+        disabled={isFormDisabled}
       >
-        {registerMutation.isPending ? "Отправка заявки..." : "Отправить заявку"}
+        Отправить заявку
       </Button>
 
-      {/* Error display */}
-      {registerMutation.isError && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
-          <p className="text-sm text-red-600 dark:text-red-400">
-            Произошла ошибка при отправке заявки. Пожалуйста, попробуйте еще
-            раз.
-          </p>
-        </div>
-      )}
-
-      <div className="text-center">
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          Уже есть аккаунт?{" "}
-        </span>
+      <p className="text-center text-sm text-text-secondary">
+        Уже есть аккаунт?{" "}
         <Link
           href={APP_ROUTES.auth.login}
-          className="text-sm text-primary hover:text-primary-dark transition-colors font-medium"
+          className="text-primary hover:text-primary-dark transition-colors"
         >
           Войти
         </Link>
-      </div>
+      </p>
     </form>
   );
 }

@@ -37,3 +37,4 @@ export {
   type FormItemProps,
 } from "./Form";
 export { ThemeToggle } from "./ThemeToggle";
+export { Logo, LogoWhite, LogoTransparent, type LogoProps } from "./Logo";
