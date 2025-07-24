@@ -27,8 +27,8 @@ export function Logo({
   const theme = forceTheme || resolvedTheme;
   const logoSrc =
     theme === "dark"
-      ? "/images/logo-white.svg"
-      : "/images/logo-transparent.svg";
+      ? "/images/logo_white.svg"
+      : "/images/logo_transparent.svg";
 
   const sizeConfig = {
     sm: { height: 32, width: 120 },
@@ -145,7 +145,7 @@ export function LogoWhite({
       aria-label="Arannati - Главная"
     >
       <Image
-        src="/images/logo-white.svg"
+        src="/images/logo_white.svg"
         alt="Arannati"
         height={sizeConfig[size].height}
         width={sizeConfig[size].width}
@@ -179,7 +179,7 @@ export function LogoTransparent({
       aria-label="Arannati - Главная"
     >
       <Image
-        src="/images/logo-transparent.svg"
+        src="/images/logo_transparent.svg"
         alt="Arannati"
         height={sizeConfig[size].height}
         width={sizeConfig[size].width}
