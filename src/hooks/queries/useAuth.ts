@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import {useRouter, useSearchParams} from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { auth } from "@/lib/api/client";
 import { authApi } from "@/lib/api/services/auth";
@@ -13,7 +13,7 @@ import type {
   ForgotPasswordInput,
   ResetPasswordInput,
 } from "@/lib/utils/validation";
-import { USER_ROLES } from "@/lib/constants";
+import {APP_ROUTES, USER_ROLES} from "@/lib/constants";
 
 interface AuthState {
   user: UserDTO | null;
@@ -31,7 +31,7 @@ export function useAuth() {
 
   // Проверка аутентификации при загрузке
   useEffect(() => {
-    const checkAuth = async () => {
+    (async () => {
       try {
         const tokens = auth.getTokens();
 
@@ -74,9 +74,7 @@ export function useAuth() {
           isAuthenticated: false,
         });
       }
-    };
-
-    checkAuth();
+    })();
   }, []);
 
   // Функция входа
@@ -156,6 +154,7 @@ export function useCurrentUser() {
 export function useLogin() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const mutation = useMutation({
     mutationFn: async (data: LoginInput) => {
@@ -166,8 +165,30 @@ export function useLogin() {
       queryClient.setQueryData(queryKeys.auth.user(), response.user);
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth.user() });
 
-      // Редирект на главную страницу или страницу, с которой пришел пользователь
-      router.push("/");
+      // Проверяем callbackUrl из query params
+      const callbackUrl = searchParams.get("callbackUrl");
+
+      if (
+          callbackUrl &&
+          !callbackUrl.includes("login") &&
+          !callbackUrl.includes("register") &&
+          !callbackUrl.includes("logout")
+      ) {
+        router.push(callbackUrl);
+        return;
+      }
+
+      // Редирект по умолчанию в зависимости от роли
+      switch (response.user.role) {
+        case USER_ROLES.ADMIN:
+          router.push(APP_ROUTES.admin.dashboard);
+          break;
+        case USER_ROLES.COSMETOLOGIST:
+          router.push(APP_ROUTES.cosmetologist.dashboard);
+          break;
+        default:
+          router.push(APP_ROUTES.user.dashboard);
+      }
     },
   });
 
