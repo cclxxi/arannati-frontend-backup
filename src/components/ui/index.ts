@@ -38,3 +38,4 @@ export {
 } from "./Form";
 export { ThemeToggle } from "./ThemeToggle";
 export { Logo, LogoWhite, LogoTransparent, type LogoProps } from "./Logo";
+export { GlassCard, GlassCardHeader, GlassCardBody } from "./GlassCard";
