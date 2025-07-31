@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import {useRouter, useSearchParams} from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { auth } from "@/lib/api/client";
 import { authApi } from "@/lib/api/services/auth";
 import { getUserFromToken } from "@/lib/utils/jwt";
 import { queryKeys } from "@/lib/react-query/keys";
+import { useAuthStore } from "@/stores";
 import type { UserDTO } from "@/types/api";
 import type {
   LoginInput,
@@ -13,7 +14,7 @@ import type {
   ForgotPasswordInput,
   ResetPasswordInput,
 } from "@/lib/utils/validation";
-import {APP_ROUTES, USER_ROLES} from "@/lib/constants";
+import { APP_ROUTES, USER_ROLES } from "@/lib/constants";
 
 interface AuthState {
   user: UserDTO | null;
@@ -155,6 +156,7 @@ export function useLogin() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { login: setAuthUser } = useAuthStore();
 
   const mutation = useMutation({
     mutationFn: async (data: LoginInput) => {
@@ -165,14 +167,17 @@ export function useLogin() {
       queryClient.setQueryData(queryKeys.auth.user(), response.user);
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth.user() });
 
+      // Обновляем состояние аутентификации в store
+      setAuthUser(response.user);
+
       // Проверяем callbackUrl из query params
       const callbackUrl = searchParams.get("callbackUrl");
 
       if (
-          callbackUrl &&
-          !callbackUrl.includes("login") &&
-          !callbackUrl.includes("register") &&
-          !callbackUrl.includes("logout")
+        callbackUrl &&
+        !callbackUrl.includes("login") &&
+        !callbackUrl.includes("register") &&
+        !callbackUrl.includes("logout")
       ) {
         router.push(callbackUrl);
         return;
@@ -248,6 +253,7 @@ export function useRegisterCosmetologist() {
 export function useLogout() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { logout: logoutFromStore } = useAuthStore();
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -256,6 +262,9 @@ export function useLogout() {
     onSuccess: () => {
       // Очищаем кэш пользователя
       queryClient.removeQueries({ queryKey: queryKeys.auth.user() });
+
+      // Обновляем состояние аутентификации в store
+      logoutFromStore();
 
       // Редирект на страницу входа
       router.push("/login");
@@ -318,16 +327,24 @@ export function useResetPassword() {
 // Hook для проверки аутентификации
 export function useIsAuthenticated() {
   const { data: user, isLoading } = useCurrentUser();
-  const isAuthenticated = !!user && auth.isAuthenticated();
+  const { user: storeUser, isAuthenticated: storeIsAuthenticated } =
+    useAuthStore();
 
-  return { isAuthenticated, isLoading, user };
+  // Проверяем аутентификацию как через API, так и через store
+  const isAuthenticated =
+    (!!user && auth.isAuthenticated()) || storeIsAuthenticated;
+
+  // Используем пользователя из API или из store
+  const authenticatedUser = user || storeUser;
+
+  return { isAuthenticated, isLoading, user: authenticatedUser };
 }
 
 // Hook для проверки роли пользователя
 export function useHasRole(
   roles: (keyof typeof USER_ROLES)[] | keyof typeof USER_ROLES,
 ) {
-  const { user, isLoading } = useCurrentUser();
+  const { user, isLoading, isAuthenticated } = useIsAuthenticated();
 
   // Проверяем, является ли roles массивом
   const roleArray = Array.isArray(roles) ? roles : [roles];
@@ -335,6 +352,7 @@ export function useHasRole(
   // Проверяем, имеет ли пользователь хотя бы одну из указанных ролей
   const hasRole =
     !isLoading &&
+    isAuthenticated &&
     !!user &&
     roleArray.some((role) => user.role === USER_ROLES[role]);
 
