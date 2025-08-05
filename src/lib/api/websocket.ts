@@ -128,9 +128,6 @@ class WebSocketClient {
 
     this.socket = io(wsUrl, {
       transports: ["websocket", "polling"],
-      auth: {
-        token: tokens.accessToken,
-      },
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: this.reconnectDelay,
