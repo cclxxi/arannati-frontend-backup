@@ -121,16 +121,20 @@ class WebSocketClient {
     }
 
     // Используем отдельный порт для Socket.IO сервера
-    const wsUrl = `${config.api.wsUrl}:9092`;
+    // Парсим базовый URL и заменяем порт
+    const baseUrl = new URL(config.api.wsUrl);
+    baseUrl.port = "9092";
+    const wsUrl = baseUrl.toString();
 
     this.socket = io(wsUrl, {
       transports: ["websocket", "polling"],
-      query: {
+      auth: {
         token: tokens.accessToken,
       },
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: this.reconnectDelay,
+      path: "/socket.io/",
     });
 
     this.setupEventListeners();
