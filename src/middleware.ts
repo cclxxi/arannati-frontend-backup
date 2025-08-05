@@ -113,6 +113,10 @@ export async function middleware(request: NextRequest) {
   const token = getAuthToken(request);
   const user = token ? getUserFromToken(token) : null;
 
+  // Clone the request headers and add pathname for server component access
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
   // Проверяем публичные роуты
   const isPublicRoute = publicRoutes.some((route) =>
     pathStartsWith(pathname, route),
@@ -137,9 +141,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(redirectUrl, request.url));
   }
 
-  // Если это публичный роут, пропускаем
+  // Если это публичный роут, пропускаем с модифицированными заголовками
   if (isPublicRoute || isAuthRoute) {
-    return NextResponse.next();
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
   }
 
   // Проверяем защищенные роуты
@@ -158,8 +166,12 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/403", request.url));
       }
 
-      // Все проверки пройдены
-      return NextResponse.next();
+      // Все проверки пройдены - возвращаем с модифицированными заголовками
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
     }
   }
 
@@ -194,7 +206,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // Return response with modified headers for all other cases
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 // Конфигурация для middleware
@@ -202,11 +219,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api (for API routes that don't need pathname header)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder
+     * - public folder and file extensions
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\..*|public).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|public).*)",
   ],
 };
