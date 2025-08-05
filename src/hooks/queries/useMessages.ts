@@ -179,7 +179,9 @@ export function useUnreadMessagesCount() {
 // Hook для индикатора набора текста
 export function useTypingIndicator(chatId: string) {
   const sendTyping = (isTyping: boolean) => {
-    wsClient.sendTypingStatus(chatId, isTyping);
+    // Passing null as recipientId as it will be determined on the server side
+    // based on the chatId
+    wsClient.sendTypingStatus(chatId, null, isTyping);
   };
 
   return { sendTyping };

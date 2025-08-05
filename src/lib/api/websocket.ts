@@ -206,7 +206,7 @@ class WebSocketClient {
   // Индикатор набора текста
   sendTypingStatus(
     chatId: string,
-    recipientId: number,
+    recipientId: number | null,
     isTyping: boolean,
   ): void {
     this.emit(SocketEvents.MESSAGE_TYPING, {
@@ -219,6 +219,24 @@ class WebSocketClient {
   // Отправка широковещательного сообщения (только для админов)
   sendBroadcast(data: BroadcastData): void {
     this.emit(SocketEvents.BROADCAST_SEND, data);
+  }
+
+  // Универсальный метод подписки на события
+  on<T = unknown>(event: string, callback: (data: T) => void): void {
+    if (!this.socket) {
+      this.connect();
+    }
+
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
+  }
+
+  // Универсальный метод отписки от событий
+  off<T = unknown>(event: string, callback: (data: T) => void): void {
+    if (this.socket) {
+      this.socket.off(event, callback);
+    }
   }
 
   // Подписка на новые сообщения
