@@ -9,6 +9,7 @@ import {
   Maximize2,
   Bot,
   Loader,
+  AlertCircle,
 } from "lucide-react";
 import { useAuthStore } from "@/stores";
 import { wsClient } from "@/lib/api/websocket";
@@ -35,12 +36,17 @@ export default function ChatWidget({
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<number>>(new Set());
-  const [isConnected, setIsConnected] = useState(false);
+  const [connectionState, setConnectionState] =
+    useState<string>("disconnected");
   const [isSending, setIsSending] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const connectionCheckInterval = useRef<
+    ReturnType<typeof setInterval> | undefined
+  >(undefined);
+
   // Scroll to bottom when new messages arrive
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -50,6 +56,12 @@ export default function ChatWidget({
     scrollToBottom();
   }, [messages]);
 
+  // Check connection status
+  const checkConnectionStatus = useCallback(() => {
+    const state = wsClient.getConnectionState();
+    setConnectionState(state);
+  }, []);
+
   // Subscribe to WebSocket events
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -57,10 +69,8 @@ export default function ChatWidget({
     // Connect WebSocket
     wsClient.connect();
 
-    // Check connection status
-    const checkConnection = setInterval(() => {
-      setIsConnected(wsClient.isAuth());
-    }, 1000);
+    // Check connection status periodically
+    connectionCheckInterval.current = setInterval(checkConnectionStatus, 1000);
 
     // Subscribe to messages
     const unsubMessage = wsClient.onMessage((message) => {
@@ -70,7 +80,12 @@ export default function ChatWidget({
         (message.type === "DIRECT" &&
           (message.senderId === user?.id || message.recipientId === user?.id))
       ) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          // Avoid duplicates
+          const exists = prev.some((m) => m.id === message.id);
+          if (exists) return prev;
+          return [...prev, message];
+        });
       }
     });
 
@@ -88,17 +103,21 @@ export default function ChatWidget({
     });
 
     return () => {
-      clearInterval(checkConnection);
+      if (connectionCheckInterval.current) {
+        clearInterval(connectionCheckInterval.current);
+      }
       unsubMessage();
       unsubTyping();
     };
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, checkConnectionStatus]);
 
   // Handle typing indicator
   const handleTyping = useCallback(() => {
+    if (!wsClient.isAuth()) return;
+
     if (!isTyping) {
       setIsTyping(true);
-      wsClient.sendTypingStatus("support", 0, true);
+      wsClient.sendTypingStatus("support", null, true);
     }
 
     // Clear previous timeout
@@ -109,13 +128,13 @@ export default function ChatWidget({
     // Set new timeout
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      wsClient.sendTypingStatus("support", 0, false);
+      wsClient.sendTypingStatus("support", null, false);
     }, 1000);
   }, [isTyping]);
 
   // Handle send message
   const handleSend = async () => {
-    if (!inputValue.trim() || !isConnected || isSending) return;
+    if (!inputValue.trim() || !wsClient.isAuth() || isSending) return;
 
     setIsSending(true);
     const messageContent = inputValue.trim();
@@ -124,7 +143,7 @@ export default function ChatWidget({
     // Stop typing indicator
     if (isTyping) {
       setIsTyping(false);
-      wsClient.sendTypingStatus("support", 0, false);
+      wsClient.sendTypingStatus("support", null, false);
     }
 
     try {
@@ -144,6 +163,9 @@ export default function ChatWidget({
       };
 
       setMessages((prev) => [...prev, optimisticMessage]);
+    } catch (error) {
+      console.error("Ошибка отправки сообщения:", error);
+      setInputValue(messageContent); // Restore input
     } finally {
       setIsSending(false);
     }
@@ -156,6 +178,27 @@ export default function ChatWidget({
       handleSend();
     }
   };
+
+  // Connection status indicator
+  const getConnectionStatus = () => {
+    switch (connectionState) {
+      case "authenticated":
+        return { text: "Онлайн", color: "bg-green-400", icon: null };
+      case "connected":
+      case "authenticating":
+        return { text: "Подключение...", color: "bg-yellow-400", icon: null };
+      case "connecting":
+        return { text: "Соединение...", color: "bg-blue-400", icon: null };
+      default:
+        return {
+          text: "Оффлайн",
+          color: "bg-red-400",
+          icon: <AlertCircle size={16} />,
+        };
+    }
+  };
+
+  const status = getConnectionStatus();
 
   // Position classes
   const positionClasses =
@@ -188,15 +231,16 @@ export default function ChatWidget({
               <div className="flex items-center space-x-3">
                 <div className="relative">
                   <Bot className="w-8 h-8" />
-                  {isConnected && (
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white" />
-                  )}
+                  <div
+                    className={`absolute -bottom-1 -right-1 w-3 h-3 ${status.color} rounded-full border-2 border-white`}
+                  />
                 </div>
                 <div>
                   <h3 className="font-semibold">Поддержка Arannati</h3>
-                  <p className="text-xs opacity-90">
-                    {isConnected ? "Онлайн" : "Подключение..."}
-                  </p>
+                  <div className="flex items-center space-x-1">
+                    {status.icon}
+                    <p className="text-xs opacity-90">{status.text}</p>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
@@ -233,6 +277,11 @@ export default function ChatWidget({
                       <p className="text-sm text-gray-400 mt-2">
                         Напишите ваш вопрос, и наши специалисты ответят вам
                       </p>
+                      {connectionState !== "authenticated" && (
+                        <p className="text-xs text-yellow-600 mt-2">
+                          Ожидание подключения к серверу...
+                        </p>
+                      )}
                     </div>
                   ) : (
                     messages.map((message) => (
@@ -301,15 +350,25 @@ export default function ChatWidget({
                         handleTyping();
                       }}
                       onKeyPress={handleKeyPress}
-                      placeholder="Напишите сообщение..."
-                      disabled={!isConnected || isSending}
+                      placeholder={
+                        connectionState === "authenticated"
+                          ? "Напишите сообщение..."
+                          : "Подождите подключения..."
+                      }
+                      disabled={
+                        connectionState !== "authenticated" || isSending
+                      }
                       className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
                     />
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleSend}
-                      disabled={!inputValue.trim() || !isConnected || isSending}
+                      disabled={
+                        !inputValue.trim() ||
+                        connectionState !== "authenticated" ||
+                        isSending
+                      }
                       className="p-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSending ? (
@@ -334,9 +393,13 @@ export default function ChatWidget({
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => setIsOpen(true)}
-          className={`fixed ${positionClasses} z-50 w-14 h-14 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg flex items-center justify-center`}
+          className={`fixed ${positionClasses} z-50 w-14 h-14 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg flex items-center justify-center relative`}
         >
           <MessageCircle className="w-6 h-6" />
+          {/* Connection status indicator on button */}
+          <div
+            className={`absolute -top-1 -right-1 w-4 h-4 ${status.color} rounded-full border-2 border-white`}
+          />
         </motion.button>
       )}
     </>

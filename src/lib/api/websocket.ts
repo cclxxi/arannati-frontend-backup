@@ -101,6 +101,12 @@ class WebSocketClient {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private isAuthenticated = false;
+  private connectionState:
+    | "disconnected"
+    | "connecting"
+    | "connected"
+    | "authenticating"
+    | "authenticated" = "disconnected";
 
   // Callbacks storage
   private messageCallbacks: Set<MessageCallback> = new Set();
@@ -110,7 +116,7 @@ class WebSocketClient {
 
   // Подключение к серверу
   connect(): void {
-    if (this.socket?.connected) {
+    if (this.socket?.connected || this.connectionState === "connecting") {
       return;
     }
 
@@ -120,29 +126,46 @@ class WebSocketClient {
       return;
     }
 
-    // Используем отдельный порт для Socket.IO сервера
-    // Парсим базовый URL и заменяем порт
-    const baseUrl = new URL(config.api.wsUrl);
-    baseUrl.port = "9092";
-    const wsUrl = baseUrl.toString();
+    this.connectionState = "connecting";
 
-    this.socket = io(wsUrl, {
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: this.reconnectDelay,
-      path: "/socket.io/",
-    });
+    try {
+      // Используем отдельный порт для Socket.IO сервера
+      // Парсим базовый URL и заменяем порт
+      const baseUrl = new URL(config.api.wsUrl);
+      baseUrl.port = "9092";
+      const wsUrl = baseUrl.toString();
 
-    this.setupEventListeners();
+      console.log("Connecting to WebSocket URL:", wsUrl);
+
+      this.socket = io(wsUrl, {
+        transports: ["polling", "websocket"], // Начинаем с polling, затем upgrade
+        reconnection: true,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: this.reconnectDelay,
+        path: "/socket.io/",
+        forceNew: true,
+        timeout: 10000, // Увеличиваем timeout
+        upgrade: true,
+        autoConnect: true,
+      });
+
+      this.setupEventListeners();
+    } catch (error) {
+      console.error("Ошибка создания WebSocket соединения:", error);
+      this.connectionState = "disconnected";
+      toast.error("Ошибка инициализации подключения");
+    }
   }
 
   // Отключение от сервера
   disconnect(): void {
+    this.connectionState = "disconnected";
+    this.isAuthenticated = false;
+
     if (this.socket) {
+      this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
-      this.isAuthenticated = false;
     }
   }
 
@@ -156,19 +179,28 @@ class WebSocketClient {
     return this.isAuthenticated && this.isConnected();
   }
 
+  // Получение состояния подключения
+  getConnectionState(): string {
+    return this.connectionState;
+  }
+
   // Отправка события
   private emit<T = unknown>(event: string, data?: T): void {
     if (!this.socket?.connected) {
-      toast.error("Нет подключения к серверу");
+      console.warn("Попытка отправки без подключения:", event);
       return;
     }
 
     if (!this.isAuthenticated && event !== SocketEvents.AUTHENTICATE) {
-      toast.error("Необходима аутентификация");
+      console.warn("Попытка отправки без аутентификации:", event);
       return;
     }
 
-    this.socket.emit(event, data);
+    try {
+      this.socket.emit(event, data);
+    } catch (error) {
+      console.error("Ошибка отправки события:", error);
+    }
   }
 
   // Отправка сообщения
@@ -271,13 +303,18 @@ class WebSocketClient {
     // Подключение
     this.socket.on(SocketEvents.CONNECT, () => {
       console.log("WebSocket подключен");
+      this.connectionState = "connected";
       this.reconnectAttempts = 0;
 
-      // Аутентификация после подключения
-      const tokens = auth.getTokens();
-      if (tokens?.accessToken) {
-        this.emit(SocketEvents.AUTHENTICATE, { token: tokens.accessToken });
-      }
+      // Добавляем небольшую задержку перед аутентификацией
+      setTimeout(() => {
+        this.connectionState = "authenticating";
+        const tokens = auth.getTokens();
+        if (tokens?.accessToken) {
+          console.log("Отправляем токен для аутентификации");
+          this.emit(SocketEvents.AUTHENTICATE, { token: tokens.accessToken });
+        }
+      }, 200);
     });
 
     // Успешная аутентификация
@@ -285,9 +322,11 @@ class WebSocketClient {
       if (data.success) {
         console.log("WebSocket аутентифицирован", data);
         this.isAuthenticated = true;
+        this.connectionState = "authenticated";
         toast.success("Подключение установлено");
       } else {
         console.error("Ошибка аутентификации:", data.error);
+        this.connectionState = "connected";
         toast.error("Ошибка аутентификации");
         this.disconnect();
       }
@@ -297,13 +336,18 @@ class WebSocketClient {
     this.socket.on(SocketEvents.DISCONNECT, (reason: string) => {
       console.log("WebSocket отключен:", reason);
       this.isAuthenticated = false;
+      this.connectionState = "disconnected";
 
       if (reason === "io server disconnect") {
         // Сервер принудительно отключил
         toast.error("Соединение разорвано сервером");
       } else if (reason === "transport close") {
         // Проблемы с сетью
-        toast.error("Потеряно соединение с сервером");
+        console.warn(
+          "Потеряно соединение с сервером, попытка переподключения...",
+        );
+      } else if (reason === "transport error") {
+        console.error("Ошибка транспорта WebSocket");
       }
     });
 
@@ -316,13 +360,29 @@ class WebSocketClient {
     // Ошибка подключения
     this.socket.on("connect_error", (error: Error) => {
       console.error("Ошибка подключения WebSocket:", error);
+      this.connectionState = "disconnected";
       this.reconnectAttempts++;
 
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.error("Превышено количество попыток переподключения");
         toast.error("Не удалось подключиться к серверу");
         this.disconnect();
+      } else {
+        console.log(
+          `Попытка переподключения ${this.reconnectAttempts}/${this.maxReconnectAttempts}`,
+        );
       }
+    });
+
+    // Успешное переподключение
+    this.socket.on("reconnect", (attemptNumber: number) => {
+      console.log("Успешное переподключение после", attemptNumber, "попыток");
+      toast.success("Соединение восстановлено");
+    });
+
+    // Попытка переподключения
+    this.socket.on("reconnect_attempt", (attemptNumber: number) => {
+      console.log("Попытка переподключения", attemptNumber);
     });
 
     // Новое сообщение
