@@ -130,7 +130,6 @@ class WebSocketClient {
 
     try {
       // Используем отдельный порт для Socket.IO сервера
-      // Парсим базовый URL и заменяем порт
       const baseUrl = new URL(config.api.wsUrl);
       baseUrl.port = "9092";
       const wsUrl = baseUrl.toString();
@@ -138,15 +137,17 @@ class WebSocketClient {
       console.log("Connecting to WebSocket URL:", wsUrl);
 
       this.socket = io(wsUrl, {
-        transports: ["polling", "websocket"], // Начинаем с polling, затем upgrade
+        transports: ["polling"], // Start with polling only to avoid CORS preflight
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
         reconnectionDelay: this.reconnectDelay,
         path: "/socket.io/",
         forceNew: true,
-        timeout: 10000, // Увеличиваем timeout
-        upgrade: true,
+        timeout: 15000, // Increased timeout
+        withCredentials: false, // Disable credentials to avoid CORS issues
         autoConnect: true,
+        // Disable upgrade to websocket until CORS is fixed
+        upgrade: false,
       });
 
       this.setupEventListeners();
