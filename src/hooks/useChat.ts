@@ -5,7 +5,7 @@ import type {
   TypingEvent,
   UserStatusEvent,
   NotificationEvent,
-} from "@/lib/api/websocket";
+} from "@/lib/api/websocket-native";
 import { useAuthStore } from "@/stores";
 import toast from "react-hot-toast";
 
@@ -41,9 +41,6 @@ export function useChat(): [ChatState, ChatActions] {
   // Initialize WebSocket connection
   useEffect(() => {
     if (!user) return;
-
-    // Connect to WebSocket
-    wsClient.connect();
 
     // Check connection status
     const statusInterval = setInterval(() => {
@@ -148,7 +145,8 @@ export function useChat(): [ChatState, ChatActions] {
   );
 
   const markAsRead = useCallback(
-    (chatId: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (chatId: string, _senderId?: number) => {
       if (!isConnected || !isAuthenticated) return;
       wsClient.markMessageAsRead(chatId);
     },
@@ -175,11 +173,7 @@ export function useChat(): [ChatState, ChatActions] {
         return;
       }
 
-      wsClient.sendBroadcast({
-        target: target as "all" | "users" | "cosmetologists",
-        title,
-        message,
-      });
+      wsClient.sendBroadcast(target, title, message);
     },
     [isConnected, isAuthenticated, user?.role],
   );

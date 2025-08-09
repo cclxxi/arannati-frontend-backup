@@ -83,13 +83,16 @@ export function useAuth() {
     try {
       const response = await authApi.login({ email, password });
 
+      auth.setTokens({
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+      });
+
       setAuthState({
         user: response.user,
         isLoading: false,
         isAuthenticated: true,
       });
-
-      return response;
     } catch (error) {
       throw error;
     }

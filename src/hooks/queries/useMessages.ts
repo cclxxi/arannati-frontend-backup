@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { messagesApi /*, type SendMessageInput*/ } from "@/lib/api";
 import { queryKeys } from "@/lib/react-query/keys";
 import { showSuccess } from "@/utils/error";
-import { wsClient, SocketEvents } from "@/api/websocket-native";
+import { wsClient, SocketEvents } from "@/lib/api/websocket-native";
 import { useEffect } from "react";
 import type { MessageDTO /*, ChatDTO*/ } from "@/types/api";
 

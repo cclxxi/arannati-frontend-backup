@@ -7,7 +7,7 @@ import { config } from "@/lib/config";
 import { handleApiError } from "@/lib/utils/error";
 import { STORAGE_KEYS, API_ROUTES } from "@/lib/constants";
 import Cookies from "js-cookie";
-import { isTokenExpired } from "@/lib/utils/jwt";
+import { getUserFromToken, isTokenExpired } from "@/lib/utils/jwt";
 
 // Типы для аутентификации
 interface AuthTokens {
@@ -45,7 +45,7 @@ let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
 
 // Функция для подписки на обновление токена
-const subscribeTokenRefresh = (callback: (token: string) => void) => {
+export const subscribeTokenRefresh = (callback: (token: string) => void) => {
   refreshSubscribers.push(callback);
 };
 
@@ -55,13 +55,20 @@ const onTokenRefreshed = (token: string) => {
   refreshSubscribers = [];
 };
 
+const stripBearer = (value?: string): string | undefined => {
+  if (!value) return undefined;
+  return value.replace(/^Bearer\s+/i, "").trim();
+};
+
 // Функция для получения токенов
 const getAuthTokens = (): AuthTokens | null => {
-  const accessToken = Cookies.get(STORAGE_KEYS.AUTH_TOKEN);
-  const refreshToken = Cookies.get(STORAGE_KEYS.REFRESH_TOKEN);
+  const accessTokenRaw = Cookies.get(STORAGE_KEYS.AUTH_TOKEN);
+  const refreshTokenRaw = Cookies.get(STORAGE_KEYS.REFRESH_TOKEN);
+
+  const accessToken = stripBearer(accessTokenRaw);
+  const refreshToken = stripBearer(refreshTokenRaw);
 
   if (!accessToken) return null;
-
   return { accessToken, refreshToken };
 };
 
@@ -73,18 +80,20 @@ const setAuthTokens = (tokens: AuthTokens) => {
     path: "/",
   };
 
-  // Сохраняем access token (короткий срок жизни)
-  Cookies.set(STORAGE_KEYS.AUTH_TOKEN, tokens.accessToken, {
+  const access = stripBearer(tokens.accessToken)!;
+  Cookies.set(STORAGE_KEYS.AUTH_TOKEN, access, {
     ...cookieOptions,
-    expires: 1, // 1 день
+    expires: 1,
   });
 
-  // Сохраняем refresh token (длительный срок жизни)
   if (tokens.refreshToken) {
-    Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken, {
-      ...cookieOptions,
-      expires: 7, // 7 дней
-    });
+    const refresh = stripBearer(tokens.refreshToken);
+    if (refresh) {
+      Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refresh, {
+        ...cookieOptions,
+        expires: 7,
+      });
+    }
   }
 };
 
@@ -257,6 +266,29 @@ apiClient.interceptors.response.use(
 
 // Экспортируем функции для работы с токенами
 export const auth = {
+  // Получение текущего ID пользователя из токена
+  getCurrentUserId: (): string | null => {
+    const tokens = getAuthTokens();
+    if (!tokens?.accessToken) return null;
+
+    const user = getUserFromToken(tokens.accessToken);
+    return user?.id || null;
+  },
+
+  // Получение текущего пользователя из токена
+  getCurrentUser: () => {
+    const tokens = getAuthTokens();
+    if (!tokens?.accessToken) return null;
+
+    return getUserFromToken(tokens.accessToken);
+  },
+
+  // Проверка, является ли пользователь админом
+  isAdmin: (): boolean => {
+    const user = auth.getCurrentUser();
+    return user?.role === "ADMIN";
+  },
+
   setTokens: setAuthTokens,
   getTokens: getAuthTokens,
   removeTokens: removeAuthTokens,

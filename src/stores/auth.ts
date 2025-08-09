@@ -1,15 +1,13 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { UserDTO } from "@/types/api";
-import { wsClient } from "@/api/websocket-native";
+// Removed wsClient import to avoid duplicate connections
 import { auth } from "@/lib/api";
 
 export interface AuthState {
   user: UserDTO | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-
-  // Actions
   setUser: (user: UserDTO | null) => void;
   setLoading: (loading: boolean) => void;
   login: (user: UserDTO) => void;
@@ -24,11 +22,7 @@ export const useAuthStore = create<AuthState>()(
     isLoading: true,
 
     setUser: (user) => {
-      set({
-        user,
-        isAuthenticated: !!user,
-        isLoading: false,
-      });
+      set({ user, isAuthenticated: !!user, isLoading: false });
     },
 
     setLoading: (loading) => {
@@ -36,51 +30,21 @@ export const useAuthStore = create<AuthState>()(
     },
 
     login: (user) => {
-      set({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-
-      // Подключаем WebSocket при входе
-      wsClient.connect();
+      set({ user, isAuthenticated: true, isLoading: false });
+      // Do not connect WebSocket here; AppAuthProvider handles it
     },
 
     logout: () => {
-      set({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
-
-      // Отключаем WebSocket при выходе
-      wsClient.disconnect();
-
-      // Удаляем токены
+      set({ user: null, isAuthenticated: false, isLoading: false });
+      // Do not disconnect WebSocket here; AppAuthProvider handles it
       auth.removeTokens();
     },
 
     updateUser: (updates) => {
       const currentUser = get().user;
       if (currentUser) {
-        set({
-          user: { ...currentUser, ...updates },
-        });
+        set({ user: { ...currentUser, ...updates } });
       }
     },
   })),
-);
-
-// Подписка на изменения состояния аутентификации
-useAuthStore.subscribe(
-  (state) => state.isAuthenticated,
-  (isAuthenticated) => {
-    if (isAuthenticated) {
-      // Дополнительные действия при входе
-      console.log("Пользователь авторизован");
-    } else {
-      // Дополнительные действия при выходе
-      console.log("Пользователь вышел из системы");
-    }
-  },
 );

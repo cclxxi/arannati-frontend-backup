@@ -1,4 +1,4 @@
-import { auth } from "./client";
+import { auth, subscribeTokenRefresh } from "./client";
 import toast from "react-hot-toast";
 
 // Re-export all the types that components expect
@@ -103,22 +103,49 @@ class NativeWebSocketClient {
   private connectionState = "disconnected";
   private isAuthenticatedFlag = false;
 
-  // Compatibility callbacks for existing code
+  // Compatibility callbacks...
   private messageCallbacks: Set<MessageCallback> = new Set();
   private typingCallbacks: Set<TypingCallback> = new Set();
   private statusCallbacks: Set<StatusCallback> = new Set();
   private notificationCallbacks: Set<NotificationCallback> = new Set();
 
-  // Update the connect() method with proper URL handling
-  connect(): void {
+  constructor() {
+    // Reconnect WS when access token is refreshed
+    try {
+      subscribeTokenRefresh((newToken) => {
+        if (!newToken) {
+          this.disconnect();
+          return;
+        }
+        if (this.connectionState !== "disconnected") {
+          console.log("Access token refreshed, reconnecting WebSocket...");
+          this.reconnect();
+        }
+      });
+    } catch {
+      // no-op if not available
+    }
+  }
+
+  private normalizeToken(raw: string | null | undefined): string | null {
+    if (!raw || typeof raw !== "string") return null;
+    const cleaned = raw.replace(/^Bearer\s+/i, "").trim();
+    return cleaned.length ? cleaned : null;
+  }
+
+  async connect(): Promise<void> {
     if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) {
       return;
     }
 
-    const tokens = auth.getTokens();
-    if (!tokens?.accessToken) {
-      console.warn("No token for WebSocket connection");
+    // Ensure we have a valid, not-expired token
+    const raw = await auth.ensureValidToken();
+    const accessToken = this.normalizeToken(raw);
+
+    if (!accessToken) {
+      console.warn("No valid token for WebSocket connection");
       this.connectionState = "disconnected";
+      this.isConnecting = false;
       return;
     }
 
@@ -126,45 +153,42 @@ class NativeWebSocketClient {
     this.connectionState = "connecting";
 
     try {
-      // Determine the WebSocket URL based on environment
+      const tokenParam = encodeURIComponent(accessToken);
       let wsUrl: string;
 
       if (typeof window !== "undefined") {
-        // Client-side: use environment variable or determine from current location
-        const wsHost = process.env["NEXT_PUBLIC_WS_HOST"];
+        const hostValue = process.env["NEXT_PUBLIC_WS_HOST"];
 
-        if (wsHost) {
-          // Use explicit WebSocket host from environment
-          const wsProtocol = wsHost.includes("://")
-            ? ""
-            : window.location.protocol === "https:"
-              ? "wss://"
-              : "ws://";
-          wsUrl = `${wsProtocol}${wsHost}/ws/chat?token=${encodeURIComponent(tokens.accessToken)}`;
+        if (hostValue) {
+          if (/^https?:\/\//i.test(hostValue)) {
+            const u = new URL(hostValue);
+            const proto = u.protocol === "https:" ? "wss:" : "ws:";
+            wsUrl = `${proto}//${u.host}/ws/chat?token=${tokenParam}`;
+          } else if (/^wss?:\/\//i.test(hostValue)) {
+            const u = new URL(hostValue);
+            wsUrl = `${u.protocol}//${u.host}/ws/chat?token=${tokenParam}`;
+          } else {
+            const wsProtocol =
+              window.location.protocol === "https:" ? "wss://" : "ws://";
+            wsUrl = `${wsProtocol}${hostValue}/ws/chat?token=${tokenParam}`;
+          }
         } else {
-          // Auto-determine based on current location
           const isSecure = window.location.protocol === "https:";
           const wsProtocol = isSecure ? "wss:" : "ws:";
-
-          // For development, try common WebSocket ports
           const host = window.location.hostname;
           let port = window.location.port;
-
-          if (port === "3000" || !port) {
-            port = "8080";
-          }
-
-          wsUrl = `${wsProtocol}//${host}:${port}/ws/chat?token=${encodeURIComponent(tokens.accessToken)}`;
+          if (port === "3000" || !port) port = "8080";
+          wsUrl = `${wsProtocol}//${host}:${port}/ws/chat?token=${tokenParam}`;
         }
       } else {
-        // Server-side fallback
-        wsUrl = `ws://localhost:8080/ws/chat?token=${encodeURIComponent(tokens.accessToken)}`;
+        wsUrl = `ws://localhost:8080/ws/chat?token=${tokenParam}`;
       }
 
-      console.log(
-        "Connecting to WebSocket:",
-        wsUrl.replace(tokens.accessToken, "[TOKEN]"),
-      );
+      // Mask token in logs (both raw and encoded forms)
+      const maskedUrl = wsUrl
+        .replace(accessToken, "[TOKEN]")
+        .replace(tokenParam, "[TOKEN]");
+      console.log("Connecting to WebSocket:", maskedUrl);
 
       this.ws = new WebSocket(wsUrl);
       this.setupEventListeners();
@@ -174,15 +198,27 @@ class NativeWebSocketClient {
       this.connectionState = "disconnected";
       toast.error("Failed to connect to chat server");
 
-      // Try fallback connection after delay
       setTimeout(() => {
-        this.tryFallbackConnection(tokens.accessToken);
+        this.tryFallbackConnection(accessToken);
       }, 2000);
     }
   }
 
+  private reconnect(): void {
+    this.disconnect();
+    setTimeout(() => {
+      // fire-and-forget; connect handles token retrieval
+      void this.connect();
+    }, 50);
+  }
+
   private tryFallbackConnection(token: string): void {
-    if (this.isConnecting || this.ws?.readyState === WebSocket.OPEN) {
+    if (this.isConnecting || this.ws?.readyState === WebSocket.OPEN) return;
+
+    const cleaned = this.normalizeToken(token);
+    if (!cleaned) {
+      console.warn("Cannot attempt fallback connection without a valid token");
+      this.connectionState = "disconnected";
       return;
     }
 
@@ -190,7 +226,6 @@ class NativeWebSocketClient {
     const currentHost =
       typeof window !== "undefined" ? window.location.hostname : "localhost";
 
-    // Try each port sequentially
     let portIndex = 0;
 
     const tryPort = () => {
@@ -204,7 +239,7 @@ class NativeWebSocketClient {
       }
 
       const port = fallbackPorts[portIndex++];
-      const wsUrl = `ws://${currentHost}:${port}/ws/chat?token=${encodeURIComponent(token)}`;
+      const wsUrl = `ws://${currentHost}:${port}/ws/chat?token=${encodeURIComponent(cleaned)}`;
 
       console.log(
         `Trying fallback connection to: ws://${currentHost}:${port}/ws/chat`,
@@ -218,7 +253,7 @@ class NativeWebSocketClient {
           if (this.ws?.readyState === WebSocket.CONNECTING) {
             this.ws.close();
             this.isConnecting = false;
-            tryPort(); // Try next port
+            tryPort();
           }
         }, 3000);
 
@@ -231,7 +266,7 @@ class NativeWebSocketClient {
         this.ws.onerror = () => {
           clearTimeout(connectionTimeout);
           this.isConnecting = false;
-          tryPort(); // Try next port
+          tryPort();
         };
 
         this.ws.onclose = () => {
