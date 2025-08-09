@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { wsClient } from "@/lib/api/websocket";
+import { wsClient } from "@/lib/api/websocket-native";
 import type {
   MessageDTO,
   TypingEvent,
@@ -148,9 +148,9 @@ export function useChat(): [ChatState, ChatActions] {
   );
 
   const markAsRead = useCallback(
-    (chatId: string, senderId?: number) => {
+    (chatId: string) => {
       if (!isConnected || !isAuthenticated) return;
-      wsClient.markMessageAsRead(chatId, senderId);
+      wsClient.markMessageAsRead(chatId);
     },
     [isConnected, isAuthenticated],
   );

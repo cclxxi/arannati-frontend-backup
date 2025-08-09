@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { messagesApi /*, type SendMessageInput*/ } from "@/lib/api";
 import { queryKeys } from "@/lib/react-query/keys";
 import { showSuccess } from "@/utils/error";
-import { wsClient, SocketEvents } from "@/api/websocket";
+import { wsClient, SocketEvents } from "@/api/websocket-native";
 import { useEffect } from "react";
 import type { MessageDTO /*, ChatDTO*/ } from "@/types/api";
 
@@ -24,7 +24,7 @@ export function useChats() {
       });
     };
 
-    wsClient.on<MessageDTO>(SocketEvents.MESSAGE_NEW, handleNewMessage);
+    wsClient.on(SocketEvents.MESSAGE_NEW, handleNewMessage);
 
     return () => {
       wsClient.off(SocketEvents.MESSAGE_NEW, handleNewMessage);
@@ -55,10 +55,7 @@ export function useChatMessages(chatId: string, enabled = true) {
     };
 
     // Подписываемся на новые сообщения для этого чата
-    wsClient.on<MessageDTO>(
-      `${SocketEvents.MESSAGE_NEW}:${chatId}`,
-      handleNewMessage,
-    );
+    wsClient.on(`${SocketEvents.MESSAGE_NEW}:${chatId}`, handleNewMessage);
 
     return () => {
       wsClient.off(`${SocketEvents.MESSAGE_NEW}:${chatId}`, handleNewMessage);

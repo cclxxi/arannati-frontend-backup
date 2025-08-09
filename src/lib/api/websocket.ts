@@ -338,6 +338,30 @@ class WebSocketClient {
     this.notificationCallbacks.add(callback);
     return () => this.notificationCallbacks.delete(callback);
   }
+
+  // Универсальная подписка на события
+  on<T = unknown>(
+    event: string,
+    callback: (data: T, ...args: unknown[]) => void,
+  ): void {
+    if (!this.socket) {
+      this.connect();
+    }
+
+    if (this.socket) {
+      this.socket.on(event, callback);
+    }
+  }
+
+  // Отписка от событий
+  off<T = unknown>(
+    event: string,
+    callback: (data: T, ...args: unknown[]) => void,
+  ): void {
+    if (this.socket) {
+      this.socket.off(event, callback);
+    }
+  }
 }
 
 // Экспорт экземпляра клиента

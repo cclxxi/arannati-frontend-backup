@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { UserDTO } from "@/types/api";
-import { wsClient } from "@/api/websocket";
+import { wsClient } from "@/api/websocket-native";
 import { auth } from "@/lib/api";
 
 export interface AuthState {

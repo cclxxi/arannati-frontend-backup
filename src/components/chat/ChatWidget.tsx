@@ -9,11 +9,12 @@ import {
   Maximize2,
   Bot,
   Loader,
-  AlertCircle,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { useAuthStore } from "@/stores";
-import { wsClient } from "@/lib/api/websocket";
-import type { MessageDTO, TypingEvent } from "@/lib/api/websocket";
+import { wsClient } from "@/lib/api/websocket-native";
+import type { MessageDTO, TypingEvent } from "@/lib/api/websocket-native";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/ru";
@@ -39,6 +40,7 @@ export default function ChatWidget({
   const [connectionState, setConnectionState] =
     useState<string>("disconnected");
   const [isSending, setIsSending] = useState(false);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -64,26 +66,33 @@ export default function ChatWidget({
 
   // Subscribe to WebSocket events
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return;
 
-    // Connect WebSocket
-    wsClient.connect();
+    console.log("Setting up WebSocket subscriptions for ChatWidget");
 
     // Check connection status periodically
-    connectionCheckInterval.current = setInterval(checkConnectionStatus, 1000);
+    connectionCheckInterval.current = setInterval(checkConnectionStatus, 2000);
 
     // Subscribe to messages
     const unsubMessage = wsClient.onMessage((message) => {
-      // Only show support messages in this widget
+      console.log("ChatWidget received message:", message);
+
+      // Only show support messages in this widget or direct messages to/from current user
       if (
         message.type === "SUPPORT" ||
         (message.type === "DIRECT" &&
-          (message.senderId === user?.id || message.recipientId === user?.id))
+          (message.senderId === user.id || message.recipientId === user.id))
       ) {
         setMessages((prev) => {
           // Avoid duplicates
           const exists = prev.some((m) => m.id === message.id);
           if (exists) return prev;
+
+          // If widget is closed and message is not from current user, mark as new
+          if (!isOpen && message.senderId !== user.id) {
+            setHasNewMessages(true);
+          }
+
           return [...prev, message];
         });
       }
@@ -91,6 +100,10 @@ export default function ChatWidget({
 
     // Subscribe to typing events
     const unsubTyping = wsClient.onTyping((event: TypingEvent) => {
+      console.log("Typing event:", event);
+
+      if (event.userId === user.id) return; // Don't show our own typing
+
       if (event.isTyping) {
         setTypingUsers((prev) => new Set(prev).add(event.userId));
       } else {
@@ -109,11 +122,18 @@ export default function ChatWidget({
       unsubMessage();
       unsubTyping();
     };
-  }, [isAuthenticated, user?.id, checkConnectionStatus]);
+  }, [isAuthenticated, user, isOpen, checkConnectionStatus]);
+
+  // Clear new messages indicator when opening chat
+  useEffect(() => {
+    if (isOpen) {
+      setHasNewMessages(false);
+    }
+  }, [isOpen]);
 
   // Handle typing indicator
   const handleTyping = useCallback(() => {
-    if (!wsClient.isAuth()) return;
+    if (!wsClient.isAuth() || !user) return;
 
     if (!isTyping) {
       setIsTyping(true);
@@ -130,11 +150,11 @@ export default function ChatWidget({
       setIsTyping(false);
       wsClient.sendTypingStatus("support", null, false);
     }, 1000);
-  }, [isTyping]);
+  }, [isTyping, user]);
 
   // Handle send message
   const handleSend = async () => {
-    if (!inputValue.trim() || !wsClient.isAuth() || isSending) return;
+    if (!inputValue.trim() || !wsClient.isAuth() || isSending || !user) return;
 
     setIsSending(true);
     const messageContent = inputValue.trim();
@@ -152,10 +172,10 @@ export default function ChatWidget({
 
       // Add optimistic update
       const optimisticMessage: MessageDTO = {
-        id: Date.now(),
+        id: Date.now(), // Temporary ID
         content: messageContent,
-        senderId: user?.id || 0,
-        senderName: user?.firstName || "You",
+        senderId: user.id,
+        senderName: user.firstName || "You",
         chatId: "support",
         createdAt: new Date().toISOString(),
         read: false,
@@ -164,7 +184,7 @@ export default function ChatWidget({
 
       setMessages((prev) => [...prev, optimisticMessage]);
     } catch (error) {
-      console.error("Ошибка отправки сообщения:", error);
+      console.error("Error sending message:", error);
       setInputValue(messageContent); // Restore input
     } finally {
       setIsSending(false);
@@ -183,17 +203,29 @@ export default function ChatWidget({
   const getConnectionStatus = () => {
     switch (connectionState) {
       case "authenticated":
-        return { text: "Онлайн", color: "bg-green-400", icon: null };
+        return {
+          text: "Online",
+          color: "bg-green-400",
+          icon: <Wifi size={14} className="text-white" />,
+        };
       case "connected":
       case "authenticating":
-        return { text: "Подключение...", color: "bg-yellow-400", icon: null };
+        return {
+          text: "Connecting...",
+          color: "bg-yellow-400",
+          icon: <Loader size={14} className="animate-spin text-white" />,
+        };
       case "connecting":
-        return { text: "Соединение...", color: "bg-blue-400", icon: null };
+        return {
+          text: "Connecting...",
+          color: "bg-blue-400",
+          icon: <Loader size={14} className="animate-spin text-white" />,
+        };
       default:
         return {
-          text: "Оффлайн",
+          text: "Offline",
           color: "bg-red-400",
-          icon: <AlertCircle size={16} />,
+          icon: <WifiOff size={14} className="text-white" />,
         };
     }
   };
@@ -205,7 +237,7 @@ export default function ChatWidget({
     position === "bottom-right" ? "bottom-4 right-4" : "bottom-4 left-4";
 
   // Don't render if not authenticated
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated || !user) return null;
 
   return (
     <>
@@ -232,13 +264,14 @@ export default function ChatWidget({
                 <div className="relative">
                   <Bot className="w-8 h-8" />
                   <div
-                    className={`absolute -bottom-1 -right-1 w-3 h-3 ${status.color} rounded-full border-2 border-white`}
-                  />
+                    className={`absolute -bottom-1 -right-1 w-3 h-3 ${status.color} rounded-full border-2 border-white flex items-center justify-center`}
+                  >
+                    <div className="w-1 h-1">{status.icon}</div>
+                  </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold">Поддержка Arannati</h3>
-                  <div className="flex items-center space-x-1">
-                    {status.icon}
+                  <h3 className="font-semibold">Arannati Support</h3>
+                  <div className="flex items-center space-x-2">
                     <p className="text-xs opacity-90">{status.text}</p>
                   </div>
                 </div>
@@ -273,14 +306,19 @@ export default function ChatWidget({
                   {messages.length === 0 ? (
                     <div className="text-center py-8">
                       <Bot className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                      <p className="text-gray-500">Привет! Чем могу помочь?</p>
+                      <p className="text-gray-500">
+                        Hello! How can I help you?
+                      </p>
                       <p className="text-sm text-gray-400 mt-2">
-                        Напишите ваш вопрос, и наши специалисты ответят вам
+                        Write your question and our specialists will answer you
                       </p>
                       {connectionState !== "authenticated" && (
-                        <p className="text-xs text-yellow-600 mt-2">
-                          Ожидание подключения к серверу...
-                        </p>
+                        <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <div className="flex items-center justify-center space-x-2 text-yellow-700">
+                            <Loader size={16} className="animate-spin" />
+                            <p className="text-sm">Connecting to server...</p>
+                          </div>
+                        </div>
                       )}
                     </div>
                   ) : (
@@ -289,11 +327,11 @@ export default function ChatWidget({
                         key={message.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className={`flex ${message.senderId === user?.id ? "justify-end" : "justify-start"}`}
+                        className={`flex ${message.senderId === user.id ? "justify-end" : "justify-start"}`}
                       >
                         <div
                           className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                            message.senderId === user?.id
+                            message.senderId === user.id
                               ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white"
                               : "bg-gray-100 text-gray-800"
                           }`}
@@ -301,7 +339,7 @@ export default function ChatWidget({
                           <p className="text-sm">{message.content}</p>
                           <p
                             className={`text-xs mt-1 ${
-                              message.senderId === user?.id
+                              message.senderId === user.id
                                 ? "text-white/70"
                                 : "text-gray-500"
                             }`}
@@ -331,7 +369,7 @@ export default function ChatWidget({
                           style={{ animationDelay: "0.2s" }}
                         />
                       </div>
-                      <span className="text-sm">Специалист печатает...</span>
+                      <span className="text-sm">Support is typing...</span>
                     </motion.div>
                   )}
 
@@ -352,13 +390,13 @@ export default function ChatWidget({
                       onKeyPress={handleKeyPress}
                       placeholder={
                         connectionState === "authenticated"
-                          ? "Напишите сообщение..."
-                          : "Подождите подключения..."
+                          ? "Write a message..."
+                          : "Waiting for connection..."
                       }
                       disabled={
                         connectionState !== "authenticated" || isSending
                       }
-                      className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                      className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -369,7 +407,7 @@ export default function ChatWidget({
                         connectionState !== "authenticated" ||
                         isSending
                       }
-                      className="p-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                     >
                       {isSending ? (
                         <Loader className="w-5 h-5 animate-spin" />
@@ -396,10 +434,22 @@ export default function ChatWidget({
           className={`fixed ${positionClasses} z-50 w-14 h-14 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg flex items-center justify-center relative`}
         >
           <MessageCircle className="w-6 h-6" />
+
           {/* Connection status indicator on button */}
           <div
-            className={`absolute -top-1 -right-1 w-4 h-4 ${status.color} rounded-full border-2 border-white`}
-          />
+            className={`absolute -top-1 -right-1 w-4 h-4 ${status.color} rounded-full border-2 border-white flex items-center justify-center`}
+          >
+            <div className="w-1 h-1">{status.icon}</div>
+          </div>
+
+          {/* New messages indicator */}
+          {hasNewMessages && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute -top-1 -left-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white"
+            />
+          )}
         </motion.button>
       )}
     </>

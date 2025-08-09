@@ -22,8 +22,8 @@ import {
   Spin,
   Empty,
 } from "antd";
-import { useWebSocket } from "@/lib/api/websocket";
-import type { MessageDTO, BroadcastData } from "@/lib/api/websocket";
+import { useWebSocket } from "@/lib/api/websocket-native";
+import type { MessageDTO, BroadcastData } from "@/lib/api/websocket-native";
 import { useAuthStore } from "@/stores";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
