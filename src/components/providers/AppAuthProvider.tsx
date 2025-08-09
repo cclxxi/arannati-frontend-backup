@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores";
 import { wsClient } from "@/lib/api/websocket-native";
-import { auth } from "@/lib/api";
+import { auth } from "@/lib/api/client";
 
 interface AppAuthProviderProps {
   children: React.ReactNode;
@@ -14,40 +14,47 @@ export function AppAuthProvider({ children }: AppAuthProviderProps) {
   const pathname = usePathname();
   const { isAuthenticated, user } = useAuthStore();
 
+  // Управление WebSocket подключением
   useEffect(() => {
-    let cancelled = false;
+    console.log("AppAuthProvider - Auth state:", { isAuthenticated, user });
 
-    const run = async () => {
-      if (isAuthenticated && user) {
-        // Ensure we actually have a valid token before connecting
-        const token = await auth.ensureValidToken();
-        if (cancelled) return;
+    // Проверяем токены при монтировании
+    const tokens = auth.getTokens();
+    console.log("AppAuthProvider - Current tokens:", tokens);
 
-        if (token) {
-          console.log("User authenticated, connecting WebSocket...");
-          await wsClient.connect();
-        } else {
-          console.log("No valid token available, skipping WebSocket connect");
-          wsClient.disconnect();
-        }
-      } else {
-        console.log("User not authenticated, disconnecting WebSocket...");
-        wsClient.disconnect();
-      }
-    };
-
-    run()
-      .then(() => run())
-      .catch((e) => console.error("Error during WebSocket connection:", e));
-
-    return () => {
-      cancelled = true;
+    if (tokens?.accessToken && !wsClient.isConnected()) {
+      console.log("Valid token found, connecting WebSocket...");
+      wsClient.connect();
+    } else if (!tokens?.accessToken && wsClient.isConnected()) {
+      console.log("No valid token, disconnecting WebSocket...");
       wsClient.disconnect();
+    }
+  }, []);
+
+  // Следим за изменениями аутентификации
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log("User authenticated, connecting WebSocket...");
+      // Небольшая задержка чтобы токены точно сохранились
+      setTimeout(() => {
+        if (!wsClient.isConnected()) {
+          wsClient.connect();
+        }
+      }, 100);
+    } else {
+      console.log("User not authenticated, disconnecting WebSocket...");
+      wsClient.disconnect();
+    }
+
+    // Cleanup при размонтировании
+    return () => {
+      // Не отключаем при размонтировании, только при выходе
     };
   }, [isAuthenticated, user]);
 
+  // Логирование навигации (для аналитики)
   useEffect(() => {
-    console.log(`Navigation: ${pathname}`);
+    console.log(`Навигация: ${pathname}`);
   }, [pathname]);
 
   return <>{children}</>;

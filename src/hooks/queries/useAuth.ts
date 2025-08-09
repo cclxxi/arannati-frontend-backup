@@ -1,20 +1,36 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { auth } from "@/lib/api/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { auth } from "@/lib/api";
 import { authApi } from "@/lib/api/services/auth";
 import { getUserFromToken } from "@/lib/utils/jwt";
 import { queryKeys } from "@/lib/react-query/keys";
 import { useAuthStore } from "@/stores";
 import type { UserDTO } from "@/types/api";
 import type {
-  LoginInput,
-  RegisterInput,
   CosmetologistRegisterInput,
   ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
   ResetPasswordInput,
 } from "@/lib/utils/validation";
-import { APP_ROUTES, USER_ROLES } from "@/lib/constants";
+import { USER_ROLES } from "@/lib/constants";
+import { wsClient } from "@/lib/api/websocket-native";
+import { showSuccess } from "@/utils/error";
+
+// Helper function to determine dashboard route based on user role
+function getDashboardRoute(role: string): string {
+  switch (role) {
+    case USER_ROLES.ADMIN:
+      return "/admin/dashboard";
+    case USER_ROLES.COSMETOLOGIST:
+      return "/cosmetologist/dashboard";
+    case USER_ROLES.USER:
+      return "/dashboard";
+    default:
+      return "/dashboard";
+  }
+}
 
 interface AuthState {
   user: UserDTO | null;
@@ -82,6 +98,11 @@ export function useAuth() {
   const login = async (email: string, password: string) => {
     try {
       const response = await authApi.login({ email, password });
+
+      // Ensure accessToken is a string
+      if (!response.accessToken) {
+        throw new Error("No access token received");
+      }
 
       auth.setTokens({
         accessToken: response.accessToken,
@@ -163,49 +184,51 @@ export function useLogin() {
 
   const mutation = useMutation({
     mutationFn: async (data: LoginInput) => {
-      return await authApi.login(data);
+      console.log("Login request:", data);
+
+      try {
+        // Используем authApi вместо прямого вызова
+        return await authApi.login(data);
+      } catch (error) {
+        console.error("Login error:", error);
+        throw error;
+      }
     },
     onSuccess: async (response) => {
+      console.log("Login success, response:", response);
+
+      // Проверяем что токены сохранены
+      const savedTokens = auth.getTokens();
+      console.log("Saved tokens:", savedTokens);
+
       // Обновляем кэш пользователя
       queryClient.setQueryData(queryKeys.auth.user(), response.user);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.user() });
 
       // Обновляем состояние аутентификации в store
       setAuthUser(response.user);
 
-      // Проверяем callbackUrl из query params
-      const callbackUrl = searchParams.get("callbackUrl");
+      // Инициализируем WebSocket после успешного логина
+      setTimeout(() => {
+        console.log("Initializing WebSocket connection...");
+        wsClient.connect();
+      }, 100);
 
-      if (
-        callbackUrl &&
-        !callbackUrl.includes("login") &&
-        !callbackUrl.includes("register") &&
-        !callbackUrl.includes("logout")
-      ) {
-        router.push(callbackUrl);
-        return;
-      }
+      // Перенаправляем пользователя
+      const callbackUrl = searchParams?.get("callbackUrl");
+      const redirectUrl = callbackUrl || getDashboardRoute(response.user.role);
 
-      // Редирект по умолчанию в зависимости от роли
-      switch (response.user.role) {
-        case USER_ROLES.ADMIN:
-          router.push(APP_ROUTES.admin.dashboard);
-          break;
-        case USER_ROLES.COSMETOLOGIST:
-          router.push(APP_ROUTES.cosmetologist.dashboard);
-          break;
-        default:
-          router.push(APP_ROUTES.user.dashboard);
-      }
+      showSuccess("Вы успешно вошли в систему!");
+      router.push(redirectUrl);
+    },
+    onError: (error) => {
+      console.error("Login mutation error:", error);
     },
   });
 
   return {
-    mutate: mutation.mutate,
+    ...mutation,
     isLoading: mutation.isPending,
-    isPending: mutation.isPending,
-    isError: mutation.isError,
-    error: mutation.error,
+    mutate: mutation.mutate,
   };
 }
 
