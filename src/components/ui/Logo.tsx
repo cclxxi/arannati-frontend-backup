@@ -81,6 +81,7 @@ export function Logo({
         alt="Arannati"
         height={sizeConfig[size].height}
         width={sizeConfig[size].width}
+        style={{ height: "auto", width: "auto" }}
         className="object-contain"
         priority
         onError={(e) => {
@@ -149,6 +150,7 @@ export function LogoWhite({
         alt="Arannati"
         height={sizeConfig[size].height}
         width={sizeConfig[size].width}
+        style={{ height: "auto", width: "auto" }}
         className="object-contain"
         priority
       />
@@ -183,6 +185,7 @@ export function LogoTransparent({
         alt="Arannati"
         height={sizeConfig[size].height}
         width={sizeConfig[size].width}
+        style={{ height: "auto", width: "auto" }}
         className="object-contain"
         priority
       />
