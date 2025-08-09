@@ -27,19 +27,6 @@ const apiClient: AxiosInstance = axios.create({
   headers: {},
 });
 
-apiClient.interceptors.request.use(
-  (config) => {
-    // Only set JSON content type if data is not FormData
-    if (config.data && !(config.data instanceof FormData)) {
-      config.headers["Content-Type"] = "application/json";
-    }
-    // For FormData, don't set Content-Type - let browser handle it
-
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
-
 // Флаг для предотвращения множественных запросов на обновление токена
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
@@ -56,45 +43,66 @@ const onTokenRefreshed = (token: string) => {
 };
 
 const stripBearer = (value?: string): string | undefined => {
-  if (!value) return undefined;
-  return value.replace(/^Bearer\s+/i, "").trim();
+    if (!value) return undefined;
+    // Токен уже без Bearer префикса? Возвращаем как есть
+    if (!value.startsWith('Bearer ')) return value;
+    // Убираем Bearer префикс
+    return value.substring(7).trim();
 };
 
 // Функция для получения токенов
 const getAuthTokens = (): AuthTokens | null => {
-  const accessTokenRaw = Cookies.get(STORAGE_KEYS.AUTH_TOKEN);
-  const refreshTokenRaw = Cookies.get(STORAGE_KEYS.REFRESH_TOKEN);
+    const accessToken = Cookies.get(STORAGE_KEYS.AUTH_TOKEN);
+    const refreshToken = Cookies.get(STORAGE_KEYS.REFRESH_TOKEN);
 
-  const accessToken = stripBearer(accessTokenRaw);
-  const refreshToken = stripBearer(refreshTokenRaw);
+    // Если нет access токена, возвращаем null
+    if (!accessToken || accessToken === 'undefined') {
+        return null;
+    }
 
-  if (!accessToken) return null;
-  return { accessToken, refreshToken };
+    return {
+        accessToken, // Токен уже без Bearer префикса в куки
+        refreshToken
+    };
 };
 
 // Функция для сохранения токенов
 const setAuthTokens = (tokens: AuthTokens) => {
-  const cookieOptions = {
-    secure: config.isProduction,
-    sameSite: "strict" as const,
-    path: "/",
-  };
+    const cookieOptions = {
+        secure: config.isProduction,
+        sameSite: "strict" as const,
+        path: "/",
+    };
 
-  const access = stripBearer(tokens.accessToken)!;
-  Cookies.set(STORAGE_KEYS.AUTH_TOKEN, access, {
-    ...cookieOptions,
-    expires: 1,
-  });
+    // Убираем Bearer префикс если есть
+    const accessToken = stripBearer(tokens.accessToken);
 
-  if (tokens.refreshToken) {
-    const refresh = stripBearer(tokens.refreshToken);
-    if (refresh) {
-      Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refresh, {
-        ...cookieOptions,
-        expires: 7,
-      });
+    if (!accessToken) {
+        console.error('No access token to save');
+        return;
     }
-  }
+
+    // Сохраняем access token
+    Cookies.set(STORAGE_KEYS.AUTH_TOKEN, accessToken, {
+        ...cookieOptions,
+        expires: 1, // 1 день
+    });
+
+    // Сохраняем refresh token если есть
+    if (tokens.refreshToken) {
+        const refreshToken = stripBearer(tokens.refreshToken);
+        if (refreshToken) {
+            Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken, {
+                ...cookieOptions,
+                expires: 7, // 7 дней
+            });
+        }
+    }
+
+    console.log('Tokens saved to cookies:', {
+        accessToken: accessToken.substring(0, 20) + '...',
+        refreshToken: tokens.refreshToken ? 'present' : 'absent'
+    });
 };
 
 // Функция для удаления токенов
@@ -122,83 +130,93 @@ const ensureValidToken = async (): Promise<string | null> => {
 
 // Функция для обновления токена
 const refreshAccessToken = async (): Promise<string | null> => {
-  try {
-    const tokens = getAuthTokens();
-    if (!tokens?.refreshToken) {
-      console.log("No refresh token available");
-      return null;
+    try {
+        const tokens = getAuthTokens();
+        if (!tokens?.refreshToken) {
+            console.log("No refresh token available");
+            return null;
+        }
+
+        // Проверяем refresh token на истечение
+        if (isTokenExpired(tokens.refreshToken)) {
+            console.log("Refresh token expired");
+            return null;
+        }
+
+        console.log("Refreshing access token...");
+        const response = await axios.post<RefreshTokenResponse>(
+            `${config.api.baseUrl}${API_ROUTES.auth.refresh}`,
+            { refreshToken: tokens.refreshToken },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            },
+        );
+
+        // Извлекаем токены из ответа (могут быть с префиксом Bearer)
+        const newAccessToken = response.data.accessToken?.replace('Bearer ', '') || response.data.accessToken;
+        const newRefreshToken = response.data.refreshToken?.replace('Bearer ', '') || response.data.refreshToken;
+
+        const newTokens: AuthTokens = {
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken,
+        };
+
+        setAuthTokens(newTokens);
+        console.log("Token refreshed successfully");
+        return newAccessToken;
+    } catch (error) {
+        console.error("Token refresh failed:", error);
+        removeAuthTokens();
+
+        // Редирект на страницу входа только если мы не на странице входа
+        if (
+            typeof window !== "undefined" &&
+            !window.location.pathname.includes("/login")
+        ) {
+            window.location.href = "/login";
+        }
+
+        return null;
     }
-
-    // Проверяем refresh token на истечение
-    if (isTokenExpired(tokens.refreshToken)) {
-      console.log("Refresh token expired");
-      return null;
-    }
-
-    console.log("Refreshing access token...");
-    const response = await axios.post<RefreshTokenResponse>(
-      `${config.api.baseUrl}${API_ROUTES.auth.refresh}`,
-      { refreshToken: tokens.refreshToken },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    const newTokens: AuthTokens = {
-      accessToken: response.data.accessToken,
-      refreshToken: response.data.refreshToken,
-    };
-
-    setAuthTokens(newTokens);
-    console.log("Token refreshed successfully");
-    return newTokens.accessToken;
-  } catch (error) {
-    console.error("Token refresh failed:", error);
-    removeAuthTokens();
-
-    // Редирект на страницу входа только если мы не на странице входа
-    if (
-      typeof window !== "undefined" &&
-      !window.location.pathname.includes("/login")
-    ) {
-      window.location.href = "/login";
-    }
-
-    return null;
-  }
 };
 
 // Request interceptor
 apiClient.interceptors.request.use(
-  async (config: InternalAxiosRequestConfig) => {
-    // Пропускаем добавление токена для публичных эндпоинтов
-    const publicEndpoints = [
-      API_ROUTES.auth.login,
-      API_ROUTES.auth.register,
-      API_ROUTES.auth.registerCosmetologist,
-      API_ROUTES.auth.forgotPassword,
-      API_ROUTES.auth.resetPassword,
-      API_ROUTES.auth.refresh,
-    ];
+    async (config: InternalAxiosRequestConfig) => {
+        // Only set JSON content type if data is not FormData
+        if (config.data && !(config.data instanceof FormData)) {
+            config.headers["Content-Type"] = "application/json";
+        }
 
-    const isPublicEndpoint = publicEndpoints.some((endpoint) =>
-      config.url?.includes(endpoint),
-    );
+        // Пропускаем добавление токена для публичных эндпоинтов
+        const publicEndpoints = [
+            API_ROUTES.auth.login,
+            API_ROUTES.auth.register,
+            API_ROUTES.auth.registerCosmetologist,
+            API_ROUTES.auth.forgotPassword,
+            API_ROUTES.auth.resetPassword,
+            API_ROUTES.auth.refresh,
+        ];
 
-    if (!isPublicEndpoint) {
-      const token = await ensureValidToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
+        const isPublicEndpoint = publicEndpoints.some((endpoint) =>
+            config.url?.includes(endpoint),
+        );
 
-    return config;
-  },
-  (error: AxiosError) => {
-    return Promise.reject(error);
-  },
+        if (!isPublicEndpoint) {
+            const token = await ensureValidToken();
+            if (token) {
+                // Добавляем Bearer префикс при отправке
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+        }
+
+        return config;
+    },
+    (error: AxiosError) => {
+        return Promise.reject(error);
+    },
 );
 
 // Response interceptor
