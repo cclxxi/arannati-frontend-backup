@@ -14,10 +14,8 @@ export function AppAuthProvider({ children }: AppAuthProviderProps) {
   const pathname = usePathname();
   const { isAuthenticated, user } = useAuthStore();
 
-  // Управление WebSocket подключением
+  // Управление WebSocket подключением при монтировании (только один раз)
   useEffect(() => {
-    console.log("AppAuthProvider - Auth state:", { isAuthenticated, user });
-
     // Проверяем токены при монтировании
     const tokens = auth.getTokens();
     console.log("AppAuthProvider - Current tokens:", tokens);
@@ -25,10 +23,8 @@ export function AppAuthProvider({ children }: AppAuthProviderProps) {
     if (tokens?.accessToken && !wsClient.isConnected()) {
       console.log("Valid token found, connecting WebSocket...");
       wsClient.connect();
-    } else if (!tokens?.accessToken && wsClient.isConnected()) {
-      console.log("No valid token, disconnecting WebSocket...");
-      wsClient.disconnect();
     }
+    // Запускаем только при монтировании компонента
   }, []);
 
   // Следим за изменениями аутентификации
@@ -36,11 +32,14 @@ export function AppAuthProvider({ children }: AppAuthProviderProps) {
     if (isAuthenticated && user) {
       console.log("User authenticated, connecting WebSocket...");
       // Небольшая задержка чтобы токены точно сохранились
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (!wsClient.isConnected()) {
           wsClient.connect();
         }
       }, 100);
+
+      // Cleanup таймера
+      return () => clearTimeout(timer);
     } else {
       console.log("User not authenticated, disconnecting WebSocket...");
       wsClient.disconnect();
