@@ -10,7 +10,36 @@ import type { OrderDTO } from "@/types/api";
 export function useOrders(filters: OrderFilters = {}) {
   return useQuery({
     queryKey: queryKeys.orders.list(filters as Record<string, unknown>),
-    queryFn: () => ordersApi.getUserOrders(filters),
+    queryFn: async () => {
+      const result = await ordersApi.getUserOrders(filters);
+      // Гарантируем возвращение объекта, а не undefined
+      return result || { content: [], totalElements: 0, totalPages: 0 };
+    },
+    // Разрешаем запрос даже если пользователь не авторизован
+    // так как эндпоинт публичный для дашборда
+    retry: false,
+  });
+}
+
+// Hook для получения последних заказов
+export function useRecentOrders(limit = 5) {
+  return useQuery({
+    queryKey: [...queryKeys.orders.list({ size: limit }), "recent"],
+    queryFn: async () => {
+      try {
+        const result = await ordersApi.getRecentOrders(limit);
+        // Всегда возвращаем массив, даже если пустой
+        return result || [];
+      } catch (error) {
+        console.error("Failed to fetch recent orders:", error);
+        // Возвращаем пустой массив в случае ошибки
+        return [];
+      }
+    },
+    // Не показываем ошибку если нет заказов
+    retry: false,
+    // Кэшируем на 1 минуту
+    staleTime: 60 * 1000,
   });
 }
 
@@ -18,7 +47,12 @@ export function useOrders(filters: OrderFilters = {}) {
 export function useOrderDetails(id: number, enabled = true) {
   return useQuery({
     queryKey: queryKeys.orders.detail(id),
-    queryFn: () => ordersApi.getOrderDetails(id),
+    queryFn: async () => {
+      if (!id || id <= 0) {
+        throw new Error("Invalid order ID");
+      }
+      return await ordersApi.getOrderDetails(id);
+    },
     enabled: enabled && id > 0,
   });
 }
@@ -27,7 +61,21 @@ export function useOrderDetails(id: number, enabled = true) {
 export function useCheckoutSummary() {
   return useQuery({
     queryKey: queryKeys.orders.checkout(),
-    queryFn: ordersApi.getCheckoutSummary,
+    queryFn: async () => {
+      const result = await ordersApi.getCheckoutSummary();
+      // Гарантируем возвращение объекта
+      return (
+        result || {
+          items: [],
+          subtotal: 0,
+          discount: 0,
+          shippingCost: 0,
+          total: 0,
+          availablePaymentMethods: [],
+          availableDeliveryMethods: [],
+        }
+      );
+    },
     staleTime: 0, // Всегда свежие данные
   });
 }
@@ -36,7 +84,17 @@ export function useCheckoutSummary() {
 export function useShippingCalculation(totalAmount: number, enabled = true) {
   return useQuery({
     queryKey: queryKeys.orders.shipping(totalAmount),
-    queryFn: () => ordersApi.calculateShipping(totalAmount),
+    queryFn: async () => {
+      if (totalAmount <= 0) {
+        return {
+          shippingCost: 0,
+          estimatedDays: 3,
+          freeShippingThreshold: 10000,
+          freeShippingApplied: false,
+        };
+      }
+      return await ordersApi.calculateShipping(totalAmount);
+    },
     enabled: enabled && totalAmount > 0,
     staleTime: 5 * 60 * 1000, // 5 минут
   });
@@ -107,20 +165,35 @@ export function useRepeatOrder() {
   });
 }
 
-// Hook для получения последних заказов
-export function useRecentOrders(limit = 5) {
-  return useQuery({
-    queryKey: [...queryKeys.orders.list({ size: limit }), "recent"],
-    queryFn: () => ordersApi.getRecentOrders(limit),
-  });
-}
-
 // Hook для получения статистики заказов
 export function useOrderStats() {
   return useQuery({
     queryKey: queryKeys.orders.stats(),
-    queryFn: ordersApi.getOrderStats,
+    queryFn: async () => {
+      try {
+        const result = await ordersApi.getOrderStats();
+        // Гарантируем возвращение объекта со всеми полями
+        return (
+          result || {
+            totalOrders: 0,
+            pendingOrders: 0,
+            completedOrders: 0,
+            totalSpent: 0,
+          }
+        );
+      } catch (error) {
+        console.error("Failed to fetch order stats:", error);
+        // Возвращаем дефолтные значения в случае ошибки
+        return {
+          totalOrders: 0,
+          pendingOrders: 0,
+          completedOrders: 0,
+          totalSpent: 0,
+        };
+      }
+    },
     staleTime: 10 * 60 * 1000, // 10 минут
+    retry: false,
   });
 }
 

@@ -1,19 +1,36 @@
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { auth } from "@/lib/api/client";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { auth } from "@/lib/api";
 import { authApi } from "@/lib/api/services/auth";
 import { getUserFromToken } from "@/lib/utils/jwt";
 import { queryKeys } from "@/lib/react-query/keys";
+import { useAuthStore } from "@/stores";
 import type { UserDTO } from "@/types/api";
 import type {
-  LoginInput,
-  RegisterInput,
   CosmetologistRegisterInput,
   ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
   ResetPasswordInput,
 } from "@/lib/utils/validation";
 import { USER_ROLES } from "@/lib/constants";
+import { wsClient } from "@/lib/api/websocket-native";
+import { showSuccess } from "@/utils/error";
+
+// Helper function to determine dashboard route based on user role
+function getDashboardRoute(role: string): string {
+  switch (role) {
+    case USER_ROLES.ADMIN:
+      return "/admin/dashboard";
+    case USER_ROLES.COSMETOLOGIST:
+      return "/cosmetologist/dashboard";
+    case USER_ROLES.USER:
+      return "/dashboard";
+    default:
+      return "/dashboard";
+  }
+}
 
 interface AuthState {
   user: UserDTO | null;
@@ -31,7 +48,7 @@ export function useAuth() {
 
   // Проверка аутентификации при загрузке
   useEffect(() => {
-    const checkAuth = async () => {
+    (async () => {
       try {
         const tokens = auth.getTokens();
 
@@ -74,9 +91,7 @@ export function useAuth() {
           isAuthenticated: false,
         });
       }
-    };
-
-    checkAuth();
+    })();
   }, []);
 
   // Функция входа
@@ -84,13 +99,21 @@ export function useAuth() {
     try {
       const response = await authApi.login({ email, password });
 
+      // Ensure accessToken is a string
+      if (!response.accessToken) {
+        throw new Error("No access token received");
+      }
+
+      auth.setTokens({
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+      });
+
       setAuthState({
         user: response.user,
         isLoading: false,
         isAuthenticated: true,
       });
-
-      return response;
     } catch (error) {
       throw error;
     }
@@ -156,27 +179,56 @@ export function useCurrentUser() {
 export function useLogin() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login: setAuthUser } = useAuthStore();
 
   const mutation = useMutation({
     mutationFn: async (data: LoginInput) => {
-      return await authApi.login(data);
+      console.log("Login request:", data);
+
+      try {
+        // Используем authApi вместо прямого вызова
+        return await authApi.login(data);
+      } catch (error) {
+        console.error("Login error:", error);
+        throw error;
+      }
     },
     onSuccess: async (response) => {
+      console.log("Login success, response:", response);
+
+      // Проверяем что токены сохранены
+      const savedTokens = auth.getTokens();
+      console.log("Saved tokens:", savedTokens);
+
       // Обновляем кэш пользователя
       queryClient.setQueryData(queryKeys.auth.user(), response.user);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.auth.user() });
 
-      // Редирект на главную страницу или страницу, с которой пришел пользователь
-      router.push("/");
+      // Обновляем состояние аутентификации в store
+      setAuthUser(response.user);
+
+      // Инициализируем WebSocket после успешного логина
+      setTimeout(() => {
+        console.log("Initializing WebSocket connection...");
+        wsClient.connect();
+      }, 100);
+
+      // Перенаправляем пользователя
+      const callbackUrl = searchParams?.get("callbackUrl");
+      const redirectUrl = callbackUrl || getDashboardRoute(response.user.role);
+
+      showSuccess("Вы успешно вошли в систему!");
+      router.push(redirectUrl);
+    },
+    onError: (error) => {
+      console.error("Login mutation error:", error);
     },
   });
 
   return {
-    mutate: mutation.mutate,
+    ...mutation,
     isLoading: mutation.isPending,
-    isPending: mutation.isPending,
-    isError: mutation.isError,
-    error: mutation.error,
+    mutate: mutation.mutate,
   };
 }
 
@@ -227,6 +279,7 @@ export function useRegisterCosmetologist() {
 export function useLogout() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { logout: logoutFromStore } = useAuthStore();
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -235,6 +288,9 @@ export function useLogout() {
     onSuccess: () => {
       // Очищаем кэш пользователя
       queryClient.removeQueries({ queryKey: queryKeys.auth.user() });
+
+      // Обновляем состояние аутентификации в store
+      logoutFromStore();
 
       // Редирект на страницу входа
       router.push("/login");
@@ -297,16 +353,24 @@ export function useResetPassword() {
 // Hook для проверки аутентификации
 export function useIsAuthenticated() {
   const { data: user, isLoading } = useCurrentUser();
-  const isAuthenticated = !!user && auth.isAuthenticated();
+  const { user: storeUser, isAuthenticated: storeIsAuthenticated } =
+    useAuthStore();
 
-  return { isAuthenticated, isLoading, user };
+  // Проверяем аутентификацию как через API, так и через store
+  const isAuthenticated =
+    (!!user && auth.isAuthenticated()) || storeIsAuthenticated;
+
+  // Используем пользователя из API или из store
+  const authenticatedUser = user || storeUser;
+
+  return { isAuthenticated, isLoading, user: authenticatedUser };
 }
 
 // Hook для проверки роли пользователя
 export function useHasRole(
   roles: (keyof typeof USER_ROLES)[] | keyof typeof USER_ROLES,
 ) {
-  const { user, isLoading } = useCurrentUser();
+  const { user, isLoading, isAuthenticated } = useIsAuthenticated();
 
   // Проверяем, является ли roles массивом
   const roleArray = Array.isArray(roles) ? roles : [roles];
@@ -314,6 +378,7 @@ export function useHasRole(
   // Проверяем, имеет ли пользователь хотя бы одну из указанных ролей
   const hasRole =
     !isLoading &&
+    isAuthenticated &&
     !!user &&
     roleArray.some((role) => user.role === USER_ROLES[role]);
 

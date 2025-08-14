@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
     "@ant-design/icons",
     "@ant-design/plots",
   ],
+  productionBrowserSourceMaps: false,
 };
 
 export default nextConfig;

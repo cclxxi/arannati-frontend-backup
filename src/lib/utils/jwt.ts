@@ -73,6 +73,7 @@ export function getTokenExpirationTime(token: string): number | null {
 
 // Функция для извлечения пользователя из токена
 export function getUserFromToken(token: string): {
+  userId: string;
   id: string;
   email: string;
   role: string;
@@ -91,6 +92,7 @@ export function getUserFromToken(token: string): {
 
     // Адаптируем под структуру вашего JWT payload от Spring Boot
     return {
+      userId: payload.sub || payload.userId || payload.id || "",
       id: payload.sub || payload.userId || payload.id || "",
       email: payload.email || payload.username || "",
       role: payload.role || payload.authorities?.[0] || "USER",

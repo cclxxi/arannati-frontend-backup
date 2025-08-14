@@ -7,6 +7,8 @@ import { AuthProvider } from "@/components/providers/AuthProvider";
 import { AppAuthProvider } from "@/components/providers/AppAuthProvider";
 import { AntdRenderProvider } from "@/components/providers/AntdRenderProvider";
 import { Toaster } from "react-hot-toast";
+import ChatWidget from "@/components/chat/ChatWidget";
+import { headers } from "next/headers";
 import "./globals.css";
 import React from "react";
 
@@ -106,11 +108,16 @@ function ThemeScript() {
   );
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Check if we're on an admin page
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") || "";
+  const isAdminPage = pathname.startsWith("/admin");
+
   return (
     <html lang="ru" suppressHydrationWarning>
       <head>
@@ -135,6 +142,8 @@ export default function RootLayout({
                         },
                       }}
                     />
+                    {/* Chat widget - don't show on admin pages as they have their own chat interface */}
+                    {!isAdminPage && <ChatWidget position="bottom-right" />}
                   </AntdRegistry>
                 </AntdRenderProvider>
               </AppAuthProvider>

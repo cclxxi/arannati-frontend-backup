@@ -7,7 +7,7 @@ import { config } from "@/lib/config";
 import { handleApiError } from "@/lib/utils/error";
 import { STORAGE_KEYS, API_ROUTES } from "@/lib/constants";
 import Cookies from "js-cookie";
-import { isTokenExpired } from "@/lib/utils/jwt";
+import { getUserFromToken, isTokenExpired } from "@/lib/utils/jwt";
 
 // Типы для аутентификации
 interface AuthTokens {
@@ -20,25 +20,56 @@ interface RefreshTokenResponse {
   refreshToken: string;
 }
 
-// Создаем instance Axios
+// Типы для параметров запроса
+type ParamValue = string | number | boolean | null | undefined;
+type ParamArray = ParamValue[];
+type QueryParams = Record<string, ParamValue | ParamArray>;
+
+// Кастомная функция для сериализации параметров
+const paramsSerializer = (params: QueryParams): string => {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === null || value === undefined) {
+      return;
+    }
+
+    // Обработка массивов - для sort передаем каждый элемент отдельно
+    if (Array.isArray(value)) {
+      if (key === "sort") {
+        // Для sort передаем каждый элемент как отдельный параметр sort
+        value.forEach((item) => {
+          if (item !== null && item !== undefined) {
+            searchParams.append("sort", String(item));
+          }
+        });
+      } else {
+        // Для других массивов используем формат key[]=value
+        value.forEach((item) => {
+          if (item !== null && item !== undefined) {
+            searchParams.append(`${key}[]`, String(item));
+          }
+        });
+      }
+    } else {
+      searchParams.append(key, String(value));
+    }
+  });
+
+  return searchParams.toString();
+};
+
+// Создаем instance Axios с правильными настройками CORS
 const apiClient: AxiosInstance = axios.create({
   baseURL: config.api.baseUrl,
   timeout: config.api.timeout,
-  headers: {},
-});
-
-apiClient.interceptors.request.use(
-  (config) => {
-    // Only set JSON content type if data is not FormData
-    if (config.data && !(config.data instanceof FormData)) {
-      config.headers["Content-Type"] = "application/json";
-    }
-    // For FormData, don't set Content-Type - let browser handle it
-
-    return config;
+  withCredentials: true, // Важно для CORS с credentials
+  headers: {
+    Accept: "application/json",
+    "Content-Type": "application/json",
   },
-  (error) => Promise.reject(error),
-);
+  paramsSerializer, // Используем кастомный сериализатор
+});
 
 // Флаг для предотвращения множественных запросов на обновление токена
 let isRefreshing = false;
@@ -55,37 +86,67 @@ const onTokenRefreshed = (token: string) => {
   refreshSubscribers = [];
 };
 
+const stripBearer = (value?: string): string | undefined => {
+  if (!value) return undefined;
+  // Токен уже без Bearer префикса? Возвращаем как есть
+  if (!value.startsWith("Bearer ")) return value;
+  // Убираем Bearer префикс
+  return value.substring(7).trim();
+};
+
 // Функция для получения токенов
 const getAuthTokens = (): AuthTokens | null => {
   const accessToken = Cookies.get(STORAGE_KEYS.AUTH_TOKEN);
   const refreshToken = Cookies.get(STORAGE_KEYS.REFRESH_TOKEN);
 
-  if (!accessToken) return null;
+  // Если нет access токена, возвращаем null
+  if (!accessToken || accessToken === "undefined") {
+    return null;
+  }
 
-  return { accessToken, refreshToken };
+  return {
+    accessToken, // Токен уже без Bearer префикса в куки
+    refreshToken,
+  };
 };
 
 // Функция для сохранения токенов
 const setAuthTokens = (tokens: AuthTokens) => {
   const cookieOptions = {
     secure: config.isProduction,
-    sameSite: "strict" as const,
+    sameSite: "lax" as const, // Изменено на lax для CORS
     path: "/",
   };
 
-  // Сохраняем access token (короткий срок жизни)
-  Cookies.set(STORAGE_KEYS.AUTH_TOKEN, tokens.accessToken, {
+  // Убираем Bearer префикс если есть
+  const accessToken = stripBearer(tokens.accessToken);
+
+  if (!accessToken) {
+    console.error("No access token to save");
+    return;
+  }
+
+  // Сохраняем access token
+  Cookies.set(STORAGE_KEYS.AUTH_TOKEN, accessToken, {
     ...cookieOptions,
     expires: 1, // 1 день
   });
 
-  // Сохраняем refresh token (длительный срок жизни)
+  // Сохраняем refresh token если есть
   if (tokens.refreshToken) {
-    Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken, {
-      ...cookieOptions,
-      expires: 7, // 7 дней
-    });
+    const refreshToken = stripBearer(tokens.refreshToken);
+    if (refreshToken) {
+      Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken, {
+        ...cookieOptions,
+        expires: 7, // 7 дней
+      });
+    }
   }
+
+  console.log("Tokens saved to cookies:", {
+    accessToken: accessToken.substring(0, 20) + "...",
+    refreshToken: tokens.refreshToken ? "present" : "absent",
+  });
 };
 
 // Функция для удаления токенов
@@ -134,17 +195,26 @@ const refreshAccessToken = async (): Promise<string | null> => {
         headers: {
           "Content-Type": "application/json",
         },
+        withCredentials: true,
       },
     );
 
+    // Извлекаем токены из ответа (могут быть с префиксом Bearer)
+    const newAccessToken =
+      response.data.accessToken?.replace("Bearer ", "") ||
+      response.data.accessToken;
+    const newRefreshToken =
+      response.data.refreshToken?.replace("Bearer ", "") ||
+      response.data.refreshToken;
+
     const newTokens: AuthTokens = {
-      accessToken: response.data.accessToken,
-      refreshToken: response.data.refreshToken,
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
     };
 
     setAuthTokens(newTokens);
     console.log("Token refreshed successfully");
-    return newTokens.accessToken;
+    return newAccessToken;
   } catch (error) {
     console.error("Token refresh failed:", error);
     removeAuthTokens();
@@ -164,6 +234,11 @@ const refreshAccessToken = async (): Promise<string | null> => {
 // Request interceptor
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    // Only set JSON content type if data is not FormData
+    if (config.data && !(config.data instanceof FormData)) {
+      config.headers["Content-Type"] = "application/json";
+    }
+
     // Пропускаем добавление токена для публичных эндпоинтов
     const publicEndpoints = [
       API_ROUTES.auth.login,
@@ -172,17 +247,35 @@ apiClient.interceptors.request.use(
       API_ROUTES.auth.forgotPassword,
       API_ROUTES.auth.resetPassword,
       API_ROUTES.auth.refresh,
+      "/dashboard",
+      "/catalog",
+      "/cart/count",
+      "/wishlist/check",
+      "/statistics",
+      "/orders/shipping", // shipping calculation is public
     ];
 
     const isPublicEndpoint = publicEndpoints.some((endpoint) =>
       config.url?.includes(endpoint),
     );
 
-    if (!isPublicEndpoint) {
+    // Специальная логика для /orders - GET запросы публичные
+    const isPublicOrdersRequest =
+      config.url?.includes("/orders") &&
+      config.method?.toLowerCase() === "get" &&
+      !config.url?.includes("/orders/my"); // /orders/my требует авторизацию
+
+    if (!isPublicEndpoint && !isPublicOrdersRequest) {
       const token = await ensureValidToken();
       if (token) {
+        // Добавляем Bearer префикс при отправке
         config.headers.Authorization = `Bearer ${token}`;
+        console.log("Added auth header for:", config.url);
+      } else {
+        console.log("No valid token for protected endpoint:", config.url);
       }
+    } else {
+      console.log("Public access to endpoint:", config.url);
     }
 
     return config;
@@ -202,69 +295,85 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // Если ошибка 401 и это не повторный запрос
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      // Если это запрос на обновление токена или вход, не пытаемся обновить
-      if (
-        originalRequest.url?.includes(API_ROUTES.auth.refresh) ||
-        originalRequest.url?.includes(API_ROUTES.auth.login)
-      ) {
-        removeAuthTokens();
-        return Promise.reject(error);
-      }
-
-      originalRequest._retry = true;
-
-      if (!isRefreshing) {
-        isRefreshing = true;
-
-        try {
-          const newToken = await refreshAccessToken();
-          isRefreshing = false;
-
-          if (newToken) {
-            onTokenRefreshed(newToken);
-
-            // Повторяем оригинальный запрос с новым токеном
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return apiClient(originalRequest);
-          }
-        } catch {
-          isRefreshing = false;
-          onTokenRefreshed("");
-          return Promise.reject(error);
-        }
-      } else {
-        // Если уже идет обновление токена, ждем результата
-        return new Promise((resolve, reject) => {
+    // Обработка 401 ошибки
+    if (error.response?.status === 401 && !originalRequest?._retry) {
+      if (isRefreshing) {
+        // Ждем обновления токена
+        return new Promise((resolve) => {
           subscribeTokenRefresh((token: string) => {
-            if (token) {
+            if (originalRequest?.headers) {
               originalRequest.headers.Authorization = `Bearer ${token}`;
-              resolve(apiClient(originalRequest));
-            } else {
-              reject(error);
             }
+            resolve(apiClient(originalRequest));
           });
         });
       }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const newToken = await refreshAccessToken();
+      isRefreshing = false;
+      onTokenRefreshed(newToken || "");
+
+      if (newToken && originalRequest?.headers) {
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(originalRequest);
+      }
     }
 
-    // Обрабатываем другие ошибки
-    handleApiError(error);
-    return Promise.reject(error);
+    // Обработка CORS ошибок
+    if (error.code === "ERR_NETWORK" || error.message.includes("CORS")) {
+      console.error("CORS Error:", {
+        url: error.config?.url,
+        method: error.config?.method,
+        message: error.message,
+      });
+
+      // Проверяем, доступен ли бэкенд
+      if (error.config?.url) {
+        console.error(
+          `Failed to reach backend at: ${error.config.baseURL}${error.config.url}`,
+        );
+      }
+    }
+
+    return Promise.reject(handleApiError(error));
   },
 );
 
-// Экспортируем функции для работы с токенами
+// Объект auth для работы с токенами
 export const auth = {
-  setTokens: setAuthTokens,
   getTokens: getAuthTokens,
+  setTokens: setAuthTokens,
   removeTokens: removeAuthTokens,
-  isAuthenticated: () => {
+  ensureValidToken,
+  isAuthenticated: (): boolean => {
     const tokens = getAuthTokens();
     return !!(tokens?.accessToken && !isTokenExpired(tokens.accessToken));
   },
-  ensureValidToken,
+  getCurrentUserId: (): string | null => {
+    const tokens = getAuthTokens();
+    if (!tokens?.accessToken) return null;
+
+    const user = getUserFromToken(tokens.accessToken);
+    return user?.userId || null;
+  },
+  getCurrentUser: () => {
+    const tokens = getAuthTokens();
+    if (!tokens?.accessToken) return null;
+
+    return getUserFromToken(tokens.accessToken);
+  },
 };
 
 export default apiClient;
+
+// Экспортируем функции для работы с токенами (для обратной совместимости)
+export {
+  getAuthTokens,
+  setAuthTokens,
+  removeAuthTokens,
+  ensureValidToken,
+  subscribeTokenRefresh,
+};

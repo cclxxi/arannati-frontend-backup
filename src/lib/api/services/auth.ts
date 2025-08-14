@@ -12,8 +12,16 @@ import type { UserDTO } from "@/types/api";
 // Типы ответов
 interface LoginResponse {
   user: UserDTO;
-  accessToken: string;
+  accessToken?: string;
   refreshToken?: string;
+  token?: string;
+  message?: string;
+  data?: {
+    user?: UserDTO;
+    token?: string;
+    accessToken?: string;
+    refreshToken?: string;
+  };
 }
 
 interface RegisterResponse {
@@ -35,13 +43,58 @@ export const authApi = {
       data,
     );
 
+    console.log("Login response:", response.data);
+
+    // Spring Boot возвращает данные в другом формате
+    // Проверяем разные варианты ответа
+    const responseData = response.data;
+
+    // Извлекаем токены из разных возможных мест
+    let accessToken =
+      responseData.accessToken ||
+      responseData.token ||
+      responseData.data?.token ||
+      responseData.data?.accessToken;
+
+    const refreshToken =
+      responseData.refreshToken || responseData.data?.refreshToken;
+
+    // Извлекаем пользователя
+    const user =
+      responseData.user || responseData.data?.user || responseData.data;
+
+    // Если токен в заголовке Authorization
+    if (!accessToken && responseData.message?.includes("Bearer")) {
+      const match = responseData.message.match(/Bearer\s+(\S+)/);
+      if (match) {
+        accessToken = match[1];
+      }
+    }
+
+    // Если токен уже с префиксом Bearer, убираем его
+    if (accessToken?.startsWith("Bearer ")) {
+      accessToken = accessToken.substring(7);
+    }
+
+    if (!accessToken) {
+      console.error("No access token in response:", responseData);
+      throw new Error("No access token received");
+    }
+
+    console.log("Extracted tokens:", { accessToken, refreshToken });
+
     // Сохраняем токены
     auth.setTokens({
-      accessToken: response.data.accessToken,
-      refreshToken: response.data.refreshToken,
+      accessToken,
+      refreshToken,
     });
 
-    return response.data;
+    // Формируем правильный ответ
+    return {
+      user,
+      accessToken,
+      refreshToken,
+    };
   },
 
   // Регистрация обычного пользователя
@@ -54,7 +107,9 @@ export const authApi = {
   },
 
   // Регистрация косметолога
-  registerCosmetologist: async (data: CosmetologistRegisterInput) => {
+  registerCosmetologist: async (
+    data: CosmetologistRegisterInput,
+  ): Promise<RegisterResponse> => {
     const formData = new FormData();
 
     // Extract the diploma file and confirmPassword
@@ -71,7 +126,7 @@ export const authApi = {
       formData.append("diplomaFile", diplomaFile);
     }
 
-    const response = await apiClient.post(
+    const response = await apiClient.post<RegisterResponse>(
       API_ROUTES.auth.registerCosmetologist,
       formData,
       {
@@ -86,7 +141,7 @@ export const authApi = {
   // Выход из системы
   logout: async (): Promise<void> => {
     try {
-      await apiClient.post(API_ROUTES.auth.logout);
+      await apiClient.post<void>(API_ROUTES.auth.logout);
     } finally {
       // Удаляем токены в любом случае
       auth.removeTokens();

@@ -121,8 +121,8 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     },
     Menu: {
       colorBgContainer: resolvedTheme === "dark" ? "#2a3a33" : "#ffffff",
-      colorItemBgSelected: resolvedTheme === "dark" ? "#4a5f55" : "#f7ecd0",
-      colorItemTextSelected: resolvedTheme === "dark" ? "#b2cec0" : "#bc7426",
+      itemSelectedBg: resolvedTheme === "dark" ? "#4a5f55" : "#f7ecd0",
+      itemSelectedColor: resolvedTheme === "dark" ? "#b2cec0" : "#bc7426",
       algorithm: true,
     },
     Modal: {
