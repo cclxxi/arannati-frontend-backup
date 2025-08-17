@@ -1,0 +1,8 @@
+<svg width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background with Arannati brand color -->
+    <rect width="180" height="180" fill="#2a3a33" rx="20"/>
+    
+    <!-- Letter "A" for Arannati -->
+    <text x="93" y="137" font-family="Arial, sans-serif" font-size="120" font-weight="bold"
+          text-anchor="middle" fill="#efe9df">AP</text>
+</svg>
