@@ -15,6 +15,7 @@ import React from "react";
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://arannati.kz"),
   title: {
     default: "Arannati - Профессиональная косметика",
     template: "%s | Arannati",
@@ -61,9 +62,16 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "64x64" },
+      {
+        url: "/system-images/favicon-16x16.svg",
+        sizes: "16x16",
+        type: "image/svg+xml",
+      },
+    ],
     shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+    apple: "/apple-touch-icon.svg",
   },
 };
 
