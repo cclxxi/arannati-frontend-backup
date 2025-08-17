@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Image from "next/image";
+import {Logo} from "@/components/ui";
 
 // Данные о брендах
 const BRANDS = [
@@ -138,14 +139,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <div className="flex items-center space-x-2">
-              <div className="w-12 h-12 bg-gradient-to-br from-[#bc7426] to-[#905630] rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-xl">A</span>
-              </div>
-              <span className="text-2xl font-bold text-[#2a3a33]">
-                Arannati
-              </span>
-            </div>
+            <Logo size={"md"}/>
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-8">
@@ -261,7 +255,7 @@ export default function HomePage() {
           <div className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur px-4 py-2 rounded-full mb-6">
             <Sparkles className="w-5 h-5 text-[#bc7426]" />
             <span className="text-[#905630] font-medium">
-              Профессиональная косметика премиум класса
+              Профессиональная космецевтика мировых брендов
             </span>
           </div>
           <h1 className="text-5xl md:text-7xl font-bold text-[#2a3a33] mb-6">
@@ -269,8 +263,11 @@ export default function HomePage() {
             <br />с правильного ухода
           </h1>
           <p className="text-xl text-[#905630] mb-8 max-w-2xl mx-auto">
-            Эксклюзивный дистрибьютор ведущих мировых брендов профессиональной
-            косметики в Казахстане
+              ТОО АРАННАТИ – с 2006 года лидер рынка космецевтики, эстетической косметологии, БАДов и расходных материалов Казахстана и Кыргызстана.
+
+              В портфеле нашей компании уникальные мировые бренды космецевтики: ImageSkincare (США), LeviSsime (Испания), ATACHE (Испания), Yon-Ka (Франция), VAGHEGGI (Италия), VEC Cosmetics (Россия).
+
+              А также БАДы: Liposomal Vitamins (Россия), Пептидные добавки FAST и IPRO (Германия).
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
@@ -431,7 +428,7 @@ export default function HomePage() {
               Следите за новинками и акциями в наших социальных сетях
             </p>
             <a
-              href="https://instagram.com/arannati.kz"
+              href="https://www.instagram.com/s.a.lab_cosmetics/"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center space-x-2 text-[#bc7426] hover:text-[#905630] font-medium"
@@ -443,7 +440,7 @@ export default function HomePage() {
                 width={20}
                 height={20}
               />
-              <span>@arannati.kz</span>
+              <span>@s.a.lab_cosmetics</span>
             </a>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
@@ -480,14 +477,10 @@ export default function HomePage() {
             {/* Logo and Description */}
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-[#bc7426] to-[#905630] rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">A</span>
-                </div>
-                <span className="text-xl font-bold">Arannati</span>
+                <Logo size={"sm"}/>
               </div>
               <p className="text-[#b2cec0] text-sm">
-                Эксклюзивный дистрибьютор профессиональной косметики в
-                Казахстане
+                  Космецевтика и БАДы от мировых брендов
               </p>
             </div>
 
@@ -575,15 +568,15 @@ export default function HomePage() {
               <ul className="space-y-3 text-sm text-[#b2cec0]">
                 <li className="flex items-center space-x-2">
                   <Phone className="w-4 h-4" />
-                  <span>+7 (727) 123-45-67</span>
+                  <span>+7 (701) 111 82 54</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <Mail className="w-4 h-4" />
-                  <span>info@arannati.kz</span>
+                  <span>arannati-aesthetic@mail.ru</span>
                 </li>
                 <li className="flex items-start space-x-2">
                   <MapPin className="w-4 h-4 mt-1" />
-                  <span>г. Алматы, ул. Абая 150</span>
+                  <span>г. Алматы, ул. Макатаева 127/11 блок 2 , офис 426, офис 469</span>
                 </li>
               </ul>
             </div>
@@ -592,7 +585,7 @@ export default function HomePage() {
           {/* Social Links */}
           <div className="border-t border-[#3e5349] pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-[#b2cec0] mb-4 md:mb-0">
-              © 2024 Arannati. Все права защищены.
+              © 2025 Arannati. Все права защищены.
             </p>
             <div className="flex space-x-4">
               <a
