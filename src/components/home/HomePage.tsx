@@ -3,15 +3,12 @@
 import React, { useState, useEffect } from "react";
 import {
   ChevronRight,
-  Search,
-  ShoppingCart,
   User,
   Menu,
   X,
   Phone,
   MapPin,
   Mail,
-  Heart,
   Sparkles,
   Sun,
   Moon,
@@ -20,6 +17,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Logo } from "@/components/ui";
 import { useTheme } from "@/hooks";
+import SearchBar from "@/components/common/SearchBar";
+import CartWishlistButtons from "@/components/common/CartWishlistButtons";
 
 // Импортируем компоненты секций
 import BrandsSection from "./BrandsSection";
@@ -38,7 +37,6 @@ const CATEGORIES = [
 
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [scrolled, setScrolled] = useState(false);
   const { isDark, toggleTheme } = useTheme();
 
@@ -74,9 +72,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <div className="flex items-center space-x-3">
-              <Logo className="h-12 w-auto" />
-            </div>
+            <Logo className="h-14 w-auto" />
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-8">
@@ -107,19 +103,10 @@ export default function HomePage() {
             </nav>
 
             {/* Search Bar - Desktop */}
-            <div className="hidden md:flex items-center bg-white/80 dark:bg-forest/50 backdrop-blur rounded-full px-4 py-2 w-80 xl:w-96">
-              <Search className="text-gray-400 dark:text-gray-500 w-5 h-5 mr-2" />
-              <input
-                type="text"
-                placeholder="Поиск товаров..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent outline-none flex-1 text-forest dark:text-beige-light placeholder-gray-500 dark:placeholder-gray-400"
-              />
-            </div>
+            <SearchBar className="hidden md:block w-80 xl:w-96 ml-4" />
 
             {/* Right Side Icons */}
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4 ml-4">
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
@@ -133,21 +120,8 @@ export default function HomePage() {
                 )}
               </button>
 
-              {/* Wishlist */}
-              <button className="relative p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors">
-                <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-forest dark:text-beige-light" />
-                <span className="absolute -top-1 -right-1 bg-brown dark:bg-brown-light text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  3
-                </span>
-              </button>
-
-              {/* Cart */}
-              <button className="relative p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors">
-                <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-forest dark:text-beige-light" />
-                <span className="absolute -top-1 -right-1 bg-brown dark:bg-brown-light text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  2
-                </span>
-              </button>
+              {/* Cart and Wishlist Buttons */}
+              <CartWishlistButtons />
 
               {/* Login Button */}
               <Link
@@ -184,16 +158,7 @@ export default function HomePage() {
         >
           <div className="container mx-auto px-4 py-4 space-y-4">
             {/* Mobile Search */}
-            <div className="flex items-center bg-gray-100 dark:bg-forest/50 rounded-full px-4 py-2">
-              <Search className="text-gray-400 w-5 h-5 mr-2" />
-              <input
-                type="text"
-                placeholder="Поиск товаров..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent outline-none flex-1 text-forest dark:text-beige-light"
-              />
-            </div>
+            <SearchBar className="w-full" />
 
             {/* Mobile Navigation */}
             <nav className="space-y-2">
@@ -385,7 +350,19 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Company Info */}
             <div className="space-y-4">
-              <Logo className="h-10 w-auto filter brightness-0 invert" />
+              <div className="h-12">
+                {isDark ? (
+                  <Image
+                    src="/images/arannati_logos/logo_white.svg"
+                    alt="Arannati"
+                    width={150}
+                    height={48}
+                    className="h-12 w-auto"
+                  />
+                ) : (
+                  <Logo className="h-12 w-auto filter brightness-0 invert" />
+                )}
+              </div>
               <p className="text-beige-light text-sm">
                 Профессиональная косметика премиум класса
               </p>

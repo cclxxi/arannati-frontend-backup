@@ -4,10 +4,10 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Skeleton } from "antd";
-import { ExternalLink, RefreshCw, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
-// Данные о брендах с их официальными сайтами
+// Данные о брендах с правильными описаниями для Arannati
 const BRANDS_DATA = [
   {
     id: 1,
@@ -15,7 +15,8 @@ const BRANDS_DATA = [
     logo: "/images/brand_logos/atache_logo.svg",
     country: "Испания",
     shortDescription: "Профессиональная косметика премиум класса",
-    sourceUrl: "https://kosmo-estetic.ru/brends/kosmetika-atache",
+    fullDescription:
+      "ATACHE - испанский бренд профессиональной косметики, основанный в 1983 году. Специализируется на создании инновационных формул с использованием передовых технологий и высококачественных ингредиентов. Эксклюзивно представлен в Казахстане компанией Arannati.",
   },
   {
     id: 2,
@@ -23,7 +24,8 @@ const BRANDS_DATA = [
     logo: "/images/brand_logos/image_skincare_logo.svg",
     country: "США",
     shortDescription: "Инновационная косметика для профессионального ухода",
-    sourceUrl: "https://imageskincare.ru/our-story/the-image-difference",
+    fullDescription:
+      "Image Skincare - американский бренд, лидер в области профессиональной косметики. Продукция бренда основана на использовании стволовых клеток растений, пептидов и AHA кислот. Официальный дистрибьютор в Казахстане - компания Arannati.",
   },
   {
     id: 3,
@@ -31,7 +33,8 @@ const BRANDS_DATA = [
     logo: "/images/brand_logos/iph_logo.png",
     country: "Россия",
     shortDescription: "Пептидная косметика нового поколения",
-    sourceUrl: "https://milfey-shop.ru/iph-peptides",
+    fullDescription:
+      "IPH - инновационный бренд пептидной косметики, разработанный на основе последних достижений в области молекулярной биологии. Продукция содержит короткие регуляторные пептиды для эффективного омоложения. Представлен в Казахстане компанией Arannati.",
   },
   {
     id: 4,
@@ -39,7 +42,8 @@ const BRANDS_DATA = [
     logo: "/images/brand_logos/levissime_logo.png",
     country: "Испания",
     shortDescription: "Испанская медицинская косметика",
-    sourceUrl: "https://levissime.ru/about",
+    fullDescription:
+      "LEVISSIME - профессиональная косметика из Испании для салонов красоты и домашнего ухода. Бренд известен своими альгинатными масками и средствами для профессиональных процедур. Эксклюзивный дистрибьютор в Казахстане - Arannati.",
   },
   {
     id: 5,
@@ -47,7 +51,8 @@ const BRANDS_DATA = [
     logo: "/images/brand_logos/vagheggi_logo.png",
     country: "Италия",
     shortDescription: "Итальянская фитокосметика",
-    sourceUrl: "https://vagheggi.pro/ru",
+    fullDescription:
+      "VAGHEGGI - итальянский бренд с более чем 45-летней историей. Специализируется на создании фитокосметики с использованием натуральных экстрактов и эфирных масел. В Казахстане представлен компанией Arannati.",
   },
   {
     id: 6,
@@ -55,7 +60,8 @@ const BRANDS_DATA = [
     logo: "/images/brand_logos/vec_logo.svg",
     country: "Россия",
     shortDescription: "Российская инновационная косметика",
-    sourceUrl: "https://veccosmetic.com/company",
+    fullDescription:
+      "VEC Cosmetics - современный бренд профессиональной косметики, сочетающий передовые технологии и натуральные компоненты. Широкий ассортимент средств для решения различных проблем кожи. Официальный представитель в Казахстане - Arannati.",
   },
   {
     id: 7,
@@ -63,7 +69,8 @@ const BRANDS_DATA = [
     logo: "/images/brand_logos/yonka_logo_black.svg",
     country: "Франция",
     shortDescription: "Французская аромафитотерапия",
-    sourceUrl: "https://yonka.ru/our-values",
+    fullDescription:
+      "Yon-Ka - французский бренд с 1954 года, пионер в области аромафитотерапии. Продукция основана на силе эфирных масел и растительных экстрактов. Эксклюзивно представлен в Казахстане компанией Arannati.",
   },
   {
     id: 8,
@@ -71,7 +78,8 @@ const BRANDS_DATA = [
     logo: "/images/brand_logos/liposomals_logo.png",
     country: "Россия",
     shortDescription: "Липосомальные витамины и БАДы нового поколения",
-    sourceUrl: null, // У этого бренда нет отдельного сайта
+    fullDescription:
+      "Liposomal Vitamins - инновационная линия липосомальных витаминов и биологически активных добавок. Липосомальная технология обеспечивает максимальную биодоступность активных веществ. В Казахстане эксклюзивно представлен компанией Arannati.",
   },
 ];
 
@@ -82,38 +90,16 @@ interface BrandInfo {
   country: string;
   shortDescription: string;
   fullDescription?: string;
-  sourceUrl?: string | null;
-  lastUpdated?: string;
 }
 
-// Функция для получения информации о брендах
-const fetchBrandsInfo = async (): Promise<BrandInfo[]> => {
-  try {
-    // Запрашиваем информацию с нашего API, который парсит сайты брендов
-    const response = await fetch("/api/brands/info");
-    if (!response.ok) throw new Error("Failed to fetch");
-    return await response.json();
-  } catch (error) {
-    // Если API недоступен, возвращаем статичные данные
-    console.error("Failed to fetch brands info:", error);
-    return BRANDS_DATA;
-  }
-};
-
 export default function BrandsSection() {
-  const [hoveredBrand, setHoveredBrand] = useState<number | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<BrandInfo | null>(null);
 
-  // Используем React Query для кеширования данных о брендах
-  const {
-    data: brands = BRANDS_DATA,
-    isLoading,
-    refetch,
-  } = useQuery({
+  // Используем статичные данные вместо парсинга
+  const { data: brands = BRANDS_DATA, isLoading } = useQuery({
     queryKey: ["brands-info"],
-    queryFn: fetchBrandsInfo,
-    staleTime: 1000 * 60 * 60 * 24, // Кешируем на 24 часа
-    refetchOnWindowFocus: false,
+    queryFn: async () => BRANDS_DATA,
+    staleTime: Infinity, // Данные не меняются
   });
 
   return (
@@ -128,18 +114,6 @@ export default function BrandsSection() {
             Мы работаем только с проверенными мировыми лидерами в области
             профессиональной косметики
           </p>
-        </div>
-
-        {/* Refresh Button */}
-        <div className="flex justify-end mb-6">
-          <button
-            onClick={() => refetch()}
-            className="flex items-center space-x-2 text-brown dark:text-beige-light hover:text-brown-light dark:hover:text-brown-light transition-colors"
-            title="Обновить информацию о брендах"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span className="text-sm">Обновить</span>
-          </button>
         </div>
 
         {/* Brands Grid */}
@@ -159,13 +133,11 @@ export default function BrandsSection() {
               brands.map((brand, index) => (
                 <div
                   key={brand.id}
-                  onMouseEnter={() => setHoveredBrand(brand.id)}
-                  onMouseLeave={() => setHoveredBrand(null)}
                   onClick={() => setSelectedBrand(brand)}
-                  className={`group relative bg-white dark:bg-forest/50 rounded-2xl p-4 sm:p-6 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer animate-scale-in`}
+                  className={`group relative bg-white dark:bg-forest/50 rounded-2xl p-4 sm:p-6 hover:shadow-xl transition-all duration-300 cursor-pointer animate-scale-in`}
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-brown/10 to-mint/10 dark:from-brown-light/10 dark:to-mint/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-brown/5 to-mint/5 dark:from-brown-light/5 dark:to-mint/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
                   <div className="relative">
                     {/* Brand Logo */}
@@ -180,7 +152,7 @@ export default function BrandsSection() {
                         />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-brown to-brown-light rounded-full flex items-center justify-center text-white font-bold text-xl sm:text-2xl">
-                          {brand.logo}
+                          {brand.name.substring(0, 2)}
                         </div>
                       )}
                     </div>
@@ -192,24 +164,9 @@ export default function BrandsSection() {
                     <p className="text-xs text-brown dark:text-beige text-center mb-2">
                       {brand.country}
                     </p>
-
-                    {/* Hover Description */}
-                    <div
-                      className={`overflow-hidden transition-all duration-200 ${
-                        hoveredBrand === brand.id
-                          ? "max-h-20 opacity-100"
-                          : "max-h-0 opacity-0"
-                      }`}
-                    >
-                      <p className="text-xs text-brown dark:text-beige text-center line-clamp-2">
-                        {brand.shortDescription}
-                      </p>
-                      {brand.sourceUrl && (
-                        <div className="flex justify-center mt-2">
-                          <ExternalLink className="w-3 h-3 text-brown/50 dark:text-beige/50" />
-                        </div>
-                      )}
-                    </div>
+                    <p className="text-xs text-brown/70 dark:text-beige/70 text-center line-clamp-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      {brand.shortDescription}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -236,7 +193,7 @@ export default function BrandsSection() {
                 </div>
                 <button
                   onClick={() => setSelectedBrand(null)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -248,28 +205,11 @@ export default function BrandsSection() {
                     selectedBrand.shortDescription}
                 </p>
 
-                {selectedBrand.sourceUrl && (
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <a
-                      href={selectedBrand.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-2 text-brown dark:text-brown-light hover:underline"
-                    >
-                      <span>Узнать больше на официальном сайте</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                )}
-
-                {selectedBrand.lastUpdated && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Информация обновлена:{" "}
-                    {new Date(selectedBrand.lastUpdated).toLocaleDateString(
-                      "ru",
-                    )}
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Эксклюзивный дистрибьютор в Казахстане - компания Arannati
                   </p>
-                )}
+                </div>
               </div>
 
               <div className="mt-6 flex justify-end">

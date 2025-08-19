@@ -21,14 +21,46 @@ interface Product {
   isBestseller?: boolean;
 }
 
+interface ApiProduct {
+  id: number;
+  name: string;
+  brandName?: string;
+  regularPrice: number;
+  salePrice?: number;
+  mainImagePath?: string;
+  averageRating?: number;
+  reviewsCount?: number;
+  isNew?: boolean;
+  isFeatured?: boolean;
+}
+
 // Функция для получения избранных товаров
 const fetchFeaturedProducts = async (): Promise<Product[]> => {
   try {
-    const response = await fetch("/api/products/featured?limit=8");
+    // Используем реальный API endpoint из бэкенда
+    const response = await fetch(
+      "http://localhost:8080/api/catalog/products/featured?limit=8",
+    );
     if (!response.ok) throw new Error("Failed to fetch");
-    return await response.json();
+    const data = await response.json();
+
+    // Преобразуем данные из API в нужный формат
+    return data.map((product: ApiProduct) => ({
+      id: product.id,
+      name: product.name,
+      brand: product.brandName || "Unknown",
+      price: product.regularPrice,
+      discountPrice: product.salePrice,
+      image:
+        product.mainImagePath || "/images/products/product-placeholder.jpg",
+      rating: product.averageRating || 0,
+      reviewsCount: product.reviewsCount || 0,
+      isNew: product.isNew,
+      isBestseller: product.isFeatured,
+    }));
   } catch (error) {
     console.error("Failed to fetch featured products:", error);
+    // В случае ошибки используем мокап данные
     return MOCK_PRODUCTS;
   }
 };
