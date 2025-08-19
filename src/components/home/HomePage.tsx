@@ -2,652 +2,492 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  ChevronRight,
-  Search,
-  ShoppingCart,
-  User,
-  Menu,
-  X,
-  Phone,
-  MapPin,
-  Mail,
-  Heart,
-  Sparkles,
+    ChevronRight,
+    Search,
+    ShoppingCart,
+    User,
+    Menu,
+    X,
+    Phone,
+    MapPin,
+    Mail,
+    Heart,
+    Sparkles,
+    Sun,
+    Moon,
 } from "lucide-react";
-import Image from "next/image";
-import {Logo} from "@/components/ui";
+import Link from "next/link";
+import { Logo } from "@/components/ui";
+import { useTheme } from "@/hooks";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Данные о брендах
-const BRANDS = [
-  {
-    id: 1,
-    name: "Holy Land",
-    country: "Израиль",
-    description: "Профессиональная косметика премиум класса",
-    logo: "HL",
-  },
-  {
-    id: 2,
-    name: "Christina",
-    country: "Израиль",
-    description: "Инновационная косметика для профессионального ухода",
-    logo: "CH",
-  },
-  {
-    id: 3,
-    name: "Janssen Cosmetics",
-    country: "Германия",
-    description: "Немецкая косметика с научным подходом",
-    logo: "JC",
-  },
-  {
-    id: 4,
-    name: "Mesoestetic",
-    country: "Испания",
-    description: "Испанская медицинская косметика",
-    logo: "ME",
-  },
-  {
-    id: 5,
-    name: "Dermalogica",
-    country: "США",
-    description: "Американская профессиональная косметика",
-    logo: "DL",
-  },
-  {
-    id: 6,
-    name: "Babor",
-    country: "Германия",
-    description: "Немецкая роскошная косметика",
-    logo: "BA",
-  },
-  {
-    id: 7,
-    name: "Algologie",
-    country: "Франция",
-    description: "Косметика на основе морских водорослей",
-    logo: "AL",
-  },
-  {
-    id: 8,
-    name: "Phyto",
-    country: "Франция",
-    description: "Французская фитокосметика для волос",
-    logo: "PH",
-  },
-];
+// Импортируем компоненты секций
+import BrandsSection from "./BrandsSection";
+import InstagramSection from "./InstagramSection";
+import FeaturedProducts from "./FeaturedProducts";
+import Image from "next/image";
 
 // Категории каталога
 const CATEGORIES = [
-  { id: 1, name: "Очищение", icon: "💧", count: 156 },
-  { id: 2, name: "Увлажнение", icon: "💦", count: 203 },
-  { id: 3, name: "Питание", icon: "🌿", count: 178 },
-  { id: 4, name: "Антивозрастной уход", icon: "✨", count: 145 },
-  { id: 5, name: "Защита от солнца", icon: "☀️", count: 89 },
-  { id: 6, name: "Маски и пилинги", icon: "🎭", count: 167 },
-];
-
-// Мокап Instagram постов
-const INSTAGRAM_POSTS = [
-  {
-    id: 1,
-    image: "🌸",
-    likes: 234,
-    description: "Новинки Holy Land уже в наличии! Профессиональный уход...",
-  },
-  {
-    id: 2,
-    image: "💆‍♀️",
-    likes: 456,
-    description: "Секреты идеальной кожи от наших косметологов...",
-  },
-  {
-    id: 3,
-    image: "🎁",
-    likes: 189,
-    description: "Специальное предложение на линейку Christina...",
-  },
+    { id: 1, name: "Очищение", icon: "💧", count: 156 },
+    { id: 2, name: "Увлажнение", icon: "💦", count: 203 },
+    { id: 3, name: "Питание", icon: "🌿", count: 178 },
+    { id: 4, name: "Антивозрастной уход", icon: "✨", count: 145 },
+    { id: 5, name: "Защита от солнца", icon: "☀️", count: 89 },
+    { id: 6, name: "Маски и пилинги", icon: "🎭", count: 167 },
 ];
 
 export default function HomePage() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [hoveredBrand, setHoveredBrand] = useState<number | null>(null);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [scrolled, setScrolled] = useState(false);
+    const { isDark, toggleTheme } = useTheme();
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 50);
+        };
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#efe9df] via-[#f7ecd0] to-[#efe9df]">
-      {/* Анимированный фон с жидким стеклом */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-[#b2cec0]/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-[#bc7426]/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#f7ecd0]/30 rounded-full blur-3xl animate-pulse delay-2000"></div>
-      </div>
+    // Закрываем мобильное меню при изменении размера экрана
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth >= 1024) {
+                setIsMenuOpen(false);
+            }
+        };
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
-      {/* Header */}
-      <header
-        className={`fixed w-full top-0 z-50 transition-all duration-300 ${scrolled ? "bg-white/95 backdrop-blur-md shadow-lg" : "bg-transparent"}`}
-      >
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-20">
-            {/* Logo */}
-            <Logo size={"md"}/>
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-beige-light via-white to-mint/10 dark:from-forest dark:via-gray-900 dark:to-forest/50 transition-colors duration-500">
+            {/* Header */}
+            <header
+                className={`fixed w-full top-0 z-50 transition-all duration-300 ${
+                    scrolled
+                        ? "bg-white/95 dark:bg-forest/95 backdrop-blur-lg shadow-lg"
+                        : "bg-white/80 dark:bg-forest/80 backdrop-blur-md"
+                }`}
+            >
+                <div className="container mx-auto px-4">
+                    <div className="flex items-center justify-between h-20">
+                        {/* Logo */}
+                        <Link href="/" className="flex items-center space-x-3">
+                            <Logo className="h-12 w-auto" />
+                            <span className="hidden sm:block text-xl font-bold text-forest dark:text-beige-light">
+                АРАННАТИ
+              </span>
+                        </Link>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center space-x-8">
-              <a
-                href="/catalog"
-                className="text-[#2a3a33] hover:text-[#bc7426] transition-colors font-medium"
-              >
-                Каталог
-              </a>
-              <a
-                href="/brands"
-                className="text-[#2a3a33] hover:text-[#bc7426] transition-colors font-medium"
-              >
-                Бренды
-              </a>
-              <a
-                href="/cosmetologist"
-                className="text-[#2a3a33] hover:text-[#bc7426] transition-colors font-medium"
-              >
-                Косметологам
-              </a>
-              <a
-                href="/about"
-                className="text-[#2a3a33] hover:text-[#bc7426] transition-colors font-medium"
-              >
-                О нас
-              </a>
-            </nav>
+                        {/* Desktop Navigation */}
+                        <nav className="hidden lg:flex items-center space-x-8">
+                            <Link
+                                href="/catalog"
+                                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium"
+                            >
+                                Каталог
+                            </Link>
+                            <Link
+                                href="/brands"
+                                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium"
+                            >
+                                Бренды
+                            </Link>
+                            <Link
+                                href="/cosmetologist"
+                                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium"
+                            >
+                                Косметологам
+                            </Link>
+                            <Link
+                                href="/about"
+                                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium"
+                            >
+                                О нас
+                            </Link>
+                        </nav>
 
-            {/* Search Bar */}
-            <div className="hidden md:flex items-center bg-white/80 backdrop-blur rounded-full px-4 py-2 w-80">
-              <Search className="text-gray-400 w-5 h-5 mr-2" />
-              <input
-                type="text"
-                placeholder="Поиск товаров..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent outline-none flex-1 text-[#2a3a33]"
-              />
-            </div>
+                        {/* Search Bar - Desktop */}
+                        <div className="hidden md:flex items-center bg-white/80 dark:bg-forest/50 backdrop-blur rounded-full px-4 py-2 w-80 xl:w-96">
+                            <Search className="text-gray-400 dark:text-gray-500 w-5 h-5 mr-2" />
+                            <input
+                                type="text"
+                                placeholder="Поиск товаров..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="bg-transparent outline-none flex-1 text-forest dark:text-beige-light placeholder-gray-500 dark:placeholder-gray-400"
+                            />
+                        </div>
 
-            {/* Right Side Icons */}
-            <div className="flex items-center space-x-4">
-              <button className="relative p-2 hover:bg-white/20 rounded-full transition-colors">
-                <Heart className="w-6 h-6 text-[#2a3a33]" />
-                <span className="absolute -top-1 -right-1 bg-[#bc7426] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {/* Right Side Icons */}
+                        <div className="flex items-center space-x-2 sm:space-x-4">
+                            {/* Theme Toggle */}
+                            <button
+                                onClick={toggleTheme}
+                                className="p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors"
+                                aria-label="Сменить тему"
+                            >
+                                {isDark ? (
+                                    <Sun className="w-5 h-5 sm:w-6 sm:h-6 text-beige-light" />
+                                ) : (
+                                    <Moon className="w-5 h-5 sm:w-6 sm:h-6 text-forest" />
+                                )}
+                            </button>
+
+                            {/* Wishlist */}
+                            <button className="relative p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors">
+                                <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-forest dark:text-beige-light" />
+                                <span className="absolute -top-1 -right-1 bg-brown dark:bg-brown-light text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   3
                 </span>
-              </button>
-              <button className="relative p-2 hover:bg-white/20 rounded-full transition-colors">
-                <ShoppingCart className="w-6 h-6 text-[#2a3a33]" />
-                <span className="absolute -top-1 -right-1 bg-[#bc7426] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                            </button>
+
+                            {/* Cart */}
+                            <button className="relative p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors">
+                                <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-forest dark:text-beige-light" />
+                                <span className="absolute -top-1 -right-1 bg-brown dark:bg-brown-light text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   2
                 </span>
-              </button>
-              <a
-                href="/auth/login"
-                className="flex items-center space-x-2 bg-[#bc7426] text-white px-4 py-2 rounded-full hover:bg-[#905630] transition-colors"
-              >
-                <User className="w-5 h-5" />
-                <span className="hidden sm:inline">Войти</span>
-              </a>
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="lg:hidden p-2"
-              >
-                {isMenuOpen ? (
-                  <X className="w-6 h-6" />
-                ) : (
-                  <Menu className="w-6 h-6" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+                            </button>
 
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="lg:hidden bg-white/95 backdrop-blur-md border-t">
-            <div className="container mx-auto px-4 py-4 space-y-4">
-              <a
-                href="/catalog"
-                className="block py-2 text-[#2a3a33] hover:text-[#bc7426]"
-              >
-                Каталог
-              </a>
-              <a
-                href="/brands"
-                className="block py-2 text-[#2a3a33] hover:text-[#bc7426]"
-              >
-                Бренды
-              </a>
-              <a
-                href="/cosmetologist"
-                className="block py-2 text-[#2a3a33] hover:text-[#bc7426]"
-              >
-                Косметологам
-              </a>
-              <a
-                href="/about"
-                className="block py-2 text-[#2a3a33] hover:text-[#bc7426]"
-              >
-                О нас
-              </a>
-            </div>
-          </div>
-        )}
-      </header>
+                            {/* Login Button */}
+                            <Link
+                                href="/auth/login"
+                                className="hidden sm:flex items-center space-x-2 bg-brown dark:bg-brown-light text-white px-4 py-2 rounded-full hover:bg-brown-light dark:hover:bg-brown transition-colors"
+                            >
+                                <User className="w-5 h-5" />
+                                <span>Войти</span>
+                            </Link>
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center pt-20">
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <div className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur px-4 py-2 rounded-full mb-6">
-            <Sparkles className="w-5 h-5 text-[#bc7426]" />
-            <span className="text-[#905630] font-medium">
+                            {/* Mobile Menu Toggle */}
+                            <button
+                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                className="lg:hidden p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors"
+                                aria-label="Меню"
+                            >
+                                {isMenuOpen ? (
+                                    <X className="w-6 h-6 text-forest dark:text-beige-light" />
+                                ) : (
+                                    <Menu className="w-6 h-6 text-forest dark:text-beige-light" />
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Mobile Menu */}
+                <AnimatePresence>
+                    {isMenuOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="lg:hidden bg-white/95 dark:bg-forest/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-700"
+                        >
+                            <div className="container mx-auto px-4 py-4 space-y-4">
+                                {/* Mobile Search */}
+                                <div className="flex items-center bg-gray-100 dark:bg-forest/50 rounded-full px-4 py-2">
+                                    <Search className="text-gray-400 w-5 h-5 mr-2" />
+                                    <input
+                                        type="text"
+                                        placeholder="Поиск товаров..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="bg-transparent outline-none flex-1 text-forest dark:text-beige-light"
+                                    />
+                                </div>
+
+                                {/* Mobile Navigation */}
+                                <nav className="space-y-2">
+                                    <Link
+                                        href="/catalog"
+                                        className="block py-2 text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light"
+                                        onClick={() => setIsMenuOpen(false)}
+                                    >
+                                        Каталог
+                                    </Link>
+                                    <Link
+                                        href="/brands"
+                                        className="block py-2 text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light"
+                                        onClick={() => setIsMenuOpen(false)}
+                                    >
+                                        Бренды
+                                    </Link>
+                                    <Link
+                                        href="/cosmetologist"
+                                        className="block py-2 text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light"
+                                        onClick={() => setIsMenuOpen(false)}
+                                    >
+                                        Косметологам
+                                    </Link>
+                                    <Link
+                                        href="/about"
+                                        className="block py-2 text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light"
+                                        onClick={() => setIsMenuOpen(false)}
+                                    >
+                                        О нас
+                                    </Link>
+                                </nav>
+
+                                {/* Mobile Login Button */}
+                                <Link
+                                    href="/auth/login"
+                                    className="flex items-center justify-center space-x-2 bg-brown dark:bg-brown-light text-white px-4 py-3 rounded-full hover:bg-brown-light dark:hover:bg-brown transition-colors w-full"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    <User className="w-5 h-5" />
+                                    <span>Войти</span>
+                                </Link>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </header>
+
+            {/* Hero Section */}
+            <section className="relative min-h-screen flex items-center justify-center pt-20 px-4">
+                <div className="container mx-auto text-center relative z-10">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6 }}
+                        className="inline-flex items-center space-x-2 bg-white/80 dark:bg-forest/50 backdrop-blur px-4 py-2 rounded-full mb-6"
+                    >
+                        <Sparkles className="w-5 h-5 text-brown dark:text-brown-light" />
+                        <span className="text-brown dark:text-beige font-medium">
               Профессиональная космецевтика мировых брендов
             </span>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-bold text-[#2a3a33] mb-6">
-            Красота начинается
-            <br />с правильного ухода
-          </h1>
-          <p className="text-xl text-[#905630] mb-8 max-w-2xl mx-auto">
-              ТОО АРАННАТИ – с 2006 года лидер рынка космецевтики, эстетической косметологии, БАДов и расходных материалов Казахстана и Кыргызстана.
+                    </motion.div>
 
-              В портфеле нашей компании уникальные мировые бренды космецевтики: ImageSkincare (США), LeviSsime (Испания), ATACHE (Испания), Yon-Ka (Франция), VAGHEGGI (Италия), VEC Cosmetics (Россия).
+                    <motion.h1
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.1 }}
+                        className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-forest dark:text-beige-light mb-6"
+                    >
+                        Красота начинается
+                        <br />
+                        с правильного ухода
+                    </motion.h1>
 
-              А также БАДы: Liposomal Vitamins (Россия), Пептидные добавки FAST и IPRO (Германия).
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="/catalog"
-              className="bg-[#bc7426] text-white px-8 py-4 rounded-full hover:bg-[#905630] transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
-            >
-              <span>Перейти в каталог</span>
-              <ChevronRight className="w-5 h-5" />
-            </a>
-            <a
-              href="/cosmetologist"
-              className="bg-white/80 backdrop-blur text-[#2a3a33] px-8 py-4 rounded-full hover:bg-white transition-all transform hover:scale-105"
-            >
-              Стать партнером
-            </a>
-          </div>
-        </div>
-      </section>
+                    <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
+                        className="text-lg sm:text-xl text-brown dark:text-beige mb-8 max-w-2xl mx-auto px-4"
+                    >
+                        ТОО АРАННАТИ – с 2006 года лидер рынка космецевтики, эстетической косметологии, БАДов и расходных материалов Казахстана и Кыргызстана.
+                    </motion.p>
 
-      {/* About Section */}
-      <section className="py-20 relative">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-4xl font-bold text-[#2a3a33] mb-6">
-                О компании Arannati
-              </h2>
-              <p className="text-[#905630] mb-4 leading-relaxed">
-                Мы являемся ведущим дистрибьютором профессиональной косметики в
-                Казахстане с более чем 15-летним опытом работы на рынке
-                beauty-индустрии.
-              </p>
-              <p className="text-[#905630] mb-6 leading-relaxed">
-                Наша миссия - предоставить косметологам и их клиентам доступ к
-                лучшим мировым брендам и инновационным решениям для ухода за
-                кожей.
-              </p>
-              <div className="grid grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-[#bc7426]">15+</div>
-                  <div className="text-sm text-[#905630]">лет на рынке</div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.3 }}
+                        className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+                    >
+                        <Link
+                            href="/catalog"
+                            className="bg-brown dark:bg-brown-light text-white px-8 py-4 rounded-full hover:bg-brown-light dark:hover:bg-brown transition-colors flex items-center space-x-2 group"
+                        >
+                            <span>Перейти в каталог</span>
+                            <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                        <Link
+                            href="/cosmetologist/register"
+                            className="bg-white/80 dark:bg-forest/50 backdrop-blur text-forest dark:text-beige-light px-8 py-4 rounded-full hover:bg-white dark:hover:bg-forest/70 transition-colors"
+                        >
+                            Стать косметологом
+                        </Link>
+                    </motion.div>
                 </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-[#bc7426]">8</div>
-                  <div className="text-sm text-[#905630]">премиум брендов</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-[#bc7426]">500+</div>
-                  <div className="text-sm text-[#905630]">партнеров</div>
-                </div>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="bg-gradient-to-br from-[#b2cec0]/30 to-[#bc7426]/30 backdrop-blur-md rounded-3xl p-8 transform rotate-3 hover:rotate-0 transition-transform duration-300">
-                <div className="bg-white/90 rounded-2xl p-8 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
-                  <div className="flex items-center justify-center h-64">
-                    <div className="text-6xl">🌿</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+            </section>
 
-      {/* Brands Section */}
-      <section className="py-20 bg-white/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-[#2a3a33] mb-4">
-              Наши бренды
-            </h2>
-            <p className="text-[#905630] max-w-2xl mx-auto">
-              Мы работаем только с проверенными мировыми лидерами в области
-              профессиональной косметики
-            </p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {BRANDS.map((brand) => (
-              <div
-                key={brand.id}
-                onMouseEnter={() => setHoveredBrand(brand.id)}
-                onMouseLeave={() => setHoveredBrand(null)}
-                className="group relative bg-white rounded-2xl p-6 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-[#bc7426]/10 to-[#b2cec0]/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="relative">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-[#bc7426] to-[#905630] rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                    {brand.logo}
-                  </div>
-                  <h3 className="font-bold text-[#2a3a33] text-center mb-1">
-                    {brand.name}
-                  </h3>
-                  <p className="text-xs text-[#905630] text-center mb-2">
-                    {brand.country}
-                  </p>
-                  {hoveredBrand === brand.id && (
-                    <p className="text-xs text-[#905630] text-center animate-fade-in">
-                      {brand.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Catalog Section */}
-      <section className="py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-[#2a3a33] mb-4">
-              Каталог продукции
-            </h2>
-            <p className="text-[#905630] max-w-2xl mx-auto">
-              Более 2000 наименований профессиональной косметики для решения
-              любых задач
-            </p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {CATEGORIES.map((category) => (
-              <a
-                key={category.id}
-                href={`/catalog?category=${category.id}`}
-                className="group bg-white/80 backdrop-blur rounded-2xl p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-              >
-                <div className="text-4xl mb-3 transform group-hover:scale-110 transition-transform">
-                  {category.icon}
-                </div>
-                <h3 className="font-semibold text-[#2a3a33] mb-1">
-                  {category.name}
-                </h3>
-                <p className="text-xs text-[#905630]">
-                  {category.count} товаров
-                </p>
-              </a>
-            ))}
-          </div>
-          <div className="text-center mt-8">
-            <a
-              href="/catalog"
-              className="inline-flex items-center space-x-2 text-[#bc7426] hover:text-[#905630] font-medium"
-            >
-              <span>Весь каталог</span>
-              <ChevronRight className="w-5 h-5" />
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Instagram Section */}
-      <section className="py-20 bg-gradient-to-br from-[#f7ecd0] to-[#efe9df]">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-[#2a3a33] mb-4">Наш блог</h2>
-            <p className="text-[#905630] max-w-2xl mx-auto mb-6">
-              Следите за новинками и акциями в наших социальных сетях
-            </p>
-            <a
-              href="https://www.instagram.com/s.a.lab_cosmetics/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center space-x-2 text-[#bc7426] hover:text-[#905630] font-medium"
-            >
-              <Image
-                className="w-5 h-5"
-                src="/images/meta/Instagram_Glyph_Gradient.svg"
-                alt="Instagram"
-                width={20}
-                height={20}
-              />
-              <span>@s.a.lab_cosmetics</span>
-            </a>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {INSTAGRAM_POSTS.map((post) => (
-              <a
-                key={post.id}
-                href={`https://instagram.com/p/${post.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group relative bg-white rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
-              >
-                <div className="aspect-square bg-gradient-to-br from-[#bc7426]/10 to-[#b2cec0]/10 flex items-center justify-center text-6xl">
-                  {post.image}
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Heart className="w-5 h-5 fill-current" />
-                      <span>{post.likes}</span>
+            {/* About Section */}
+            <section className="py-16 sm:py-20 px-4">
+                <div className="container mx-auto">
+                    <div className="grid md:grid-cols-2 gap-8 lg:gap-16 items-center">
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.6 }}
+                            viewport={{ once: true }}
+                        >
+                            <h2 className="text-3xl sm:text-4xl font-bold text-forest dark:text-beige-light mb-4">
+                                О компании Arannati
+                            </h2>
+                            <p className="text-brown dark:text-beige mb-6 leading-relaxed">
+                                Мы являемся эксклюзивным дистрибьютором ведущих мировых брендов
+                                профессиональной косметики в Казахстане с 2006 года.
+                            </p>
+                            <p className="text-brown dark:text-beige mb-6 leading-relaxed">
+                                Наша миссия - предоставить косметологам и их клиентам доступ к
+                                лучшим мировым брендам и инновационным решениям для ухода за
+                                кожей.
+                            </p>
+                            <div className="grid grid-cols-3 gap-4 sm:gap-6">
+                                <div className="text-center">
+                                    <div className="text-2xl sm:text-3xl font-bold text-brown dark:text-brown-light">19+</div>
+                                    <div className="text-sm text-brown dark:text-beige">лет на рынке</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl sm:text-3xl font-bold text-brown dark:text-brown-light">8</div>
+                                    <div className="text-sm text-brown dark:text-beige">премиум брендов</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl sm:text-3xl font-bold text-brown dark:text-brown-light">500+</div>
+                                    <div className="text-sm text-brown dark:text-beige">партнеров</div>
+                                </div>
+                            </div>
+                        </motion.div>
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.6 }}
+                            viewport={{ once: true }}
+                            className="relative"
+                        >
+                            <div className="bg-gradient-to-br from-mint/30 to-brown/30 dark:from-mint/20 dark:to-brown/20 backdrop-blur-md rounded-3xl p-8 transform rotate-3 hover:rotate-0 transition-transform duration-300">
+                                <div className="bg-white/90 dark:bg-forest/50 rounded-2xl p-8 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
+                                    <div className="flex items-center justify-center h-48 sm:h-64">
+                                        <div className="text-6xl sm:text-8xl">🌿</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
                     </div>
-                    <p className="text-sm line-clamp-2">{post.description}</p>
-                  </div>
                 </div>
-              </a>
-            ))}
-          </div>
+            </section>
+
+            {/* Brands Section */}
+            <BrandsSection />
+
+            {/* Catalog Section */}
+            <section className="py-16 sm:py-20 px-4">
+                <div className="container mx-auto">
+                    <div className="text-center mb-12">
+                        <h2 className="text-3xl sm:text-4xl font-bold text-forest dark:text-beige-light mb-4">
+                            Каталог продукции
+                        </h2>
+                        <p className="text-brown dark:text-beige max-w-2xl mx-auto">
+                            Более 2000 наименований профессиональной косметики для решения
+                            любых задач
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                        {CATEGORIES.map((category, index) => (
+                            <motion.a
+                                key={category.id}
+                                href={`/catalog?category=${category.id}`}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4, delay: index * 0.1 }}
+                                viewport={{ once: true }}
+                                className="group bg-white/80 dark:bg-forest/50 backdrop-blur rounded-2xl p-4 sm:p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                            >
+                                <div className="text-3xl sm:text-4xl mb-3 transform group-hover:scale-110 transition-transform">
+                                    {category.icon}
+                                </div>
+                                <h3 className="font-semibold text-forest dark:text-beige-light text-sm sm:text-base">
+                                    {category.name}
+                                </h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    {category.count} товаров
+                                </p>
+                            </motion.a>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Featured Products */}
+            <FeaturedProducts />
+
+            {/* Instagram Section */}
+            <InstagramSection />
+
+            {/* Footer */}
+            <footer className="bg-forest dark:bg-black text-white py-12 sm:py-16 px-4">
+                <div className="container mx-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                        {/* Company Info */}
+                        <div className="space-y-4">
+                            <Logo className="h-10 w-auto filter brightness-0 invert" />
+                            <p className="text-beige-light text-sm">
+                                Профессиональная косметика премиум класса
+                            </p>
+                            <div className="flex space-x-4">
+                                <a href="https://instagram.com/s.a.lab_cosmetics/" className="hover:text-brown-light transition-colors">
+                                    <Image
+                                        src={"images/meta/Instagram_Glyph_Gradient.svg"}
+                                        alt="Instagram"
+                                        className="w-5 h-5"
+                                        width={24}
+                                        height={24}
+                                    />
+                                </a>
+                            </div>
+                        </div>
+
+                        {/* Quick Links */}
+                        <div>
+                            <h3 className="font-bold mb-4 text-beige">Быстрые ссылки</h3>
+                            <ul className="space-y-2 text-sm">
+                                <li>
+                                    <Link href="/catalog" className="hover:text-brown-light transition-colors">
+                                        Каталог
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link href="/brands" className="hover:text-brown-light transition-colors">
+                                        Бренды
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link href="/about" className="hover:text-brown-light transition-colors">
+                                        О нас
+                                    </Link>
+                                </li>
+                            </ul>
+                        </div>
+
+                        {/* Contact Info */}
+                        <div>
+                            <h3 className="font-bold mb-4 text-beige">Контакты</h3>
+                            <ul className="space-y-2 text-sm">
+                                <li className="flex items-start space-x-2">
+                                    <Phone className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <span>+7 (701) 111 82 54</span>
+                                </li>
+                                <li className="flex items-start space-x-2">
+                                    <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <span>arannati-aesthetic@mail.ru</span>
+                                </li>
+                                <li className="flex items-start space-x-2">
+                                    <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <span>г. Алматы, ул. Макатаева 127/11 блок 2, офис 426, офис 469</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        {/* Working Hours */}
+                        <div>
+                            <h3 className="font-bold mb-4 text-beige">Режим работы</h3>
+                            <ul className="space-y-2 text-sm">
+                                <li>Пн-Пт: 9:00 - 18:00</li>
+                                <li>Сб: 10:00 - 16:00</li>
+                                <li>Вс: Выходной</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-gray-700 mt-8 pt-8 text-center text-sm text-beige-light">
+                        <p>&copy; 2025 Arannati. Все права защищены.</p>
+                    </div>
+                </div>
+            </footer>
         </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-[#2a3a33] text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            {/* Logo and Description */}
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Logo size={"sm"}/>
-              </div>
-              <p className="text-[#b2cec0] text-sm">
-                  Космецевтика и БАДы от мировых брендов
-              </p>
-            </div>
-
-            {/* Catalog */}
-            <div>
-              <h3 className="font-semibold mb-4">Каталог</h3>
-              <ul className="space-y-2 text-sm text-[#b2cec0]">
-                <li>
-                  <a
-                    href="/catalog/cleansing"
-                    className="hover:text-white transition-colors"
-                  >
-                    Очищение
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/catalog/moisturizing"
-                    className="hover:text-white transition-colors"
-                  >
-                    Увлажнение
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/catalog/nutrition"
-                    className="hover:text-white transition-colors"
-                  >
-                    Питание
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/catalog/anti-age"
-                    className="hover:text-white transition-colors"
-                  >
-                    Антивозрастной уход
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Information */}
-            <div>
-              <h3 className="font-semibold mb-4">Информация</h3>
-              <ul className="space-y-2 text-sm text-[#b2cec0]">
-                <li>
-                  <a
-                    href="/about"
-                    className="hover:text-white transition-colors"
-                  >
-                    О компании
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/delivery"
-                    className="hover:text-white transition-colors"
-                  >
-                    Доставка и оплата
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/cosmetologist"
-                    className="hover:text-white transition-colors"
-                  >
-                    Косметологам
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/contacts"
-                    className="hover:text-white transition-colors"
-                  >
-                    Контакты
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Contacts */}
-            <div>
-              <h3 className="font-semibold mb-4">Контакты</h3>
-              <ul className="space-y-3 text-sm text-[#b2cec0]">
-                <li className="flex items-center space-x-2">
-                  <Phone className="w-4 h-4" />
-                  <span>+7 (701) 111 82 54</span>
-                </li>
-                <li className="flex items-center space-x-2">
-                  <Mail className="w-4 h-4" />
-                  <span>arannati-aesthetic@mail.ru</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <MapPin className="w-4 h-4 mt-1" />
-                  <span>г. Алматы, ул. Макатаева 127/11 блок 2 , офис 426, офис 469</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Social Links */}
-          <div className="border-t border-[#3e5349] pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-sm text-[#b2cec0] mb-4 md:mb-0">
-              © 2025 Arannati. Все права защищены.
-            </p>
-            <div className="flex space-x-4">
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 bg-[#3e5349] rounded-full hover:bg-[#4a5f55] transition-colors"
-              >
-                <Image
-                  className="w-5 h-5"
-                  src="/images/meta/Instagram_Glyph_White.svg"
-                  alt="Instagram"
-                  width={20}
-                  height={20}
-                />
-              </a>
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 bg-[#3e5349] rounded-full hover:bg-[#4a5f55] transition-colors"
-              >
-                <Image
-                  className="w-5 h-5"
-                  src="/images/meta/Facebook_Logo_Secondary.png"
-                  alt="Facebook"
-                  width={20}
-                  height={20}
-                />
-              </a>
-              <a
-                href="https://t.me"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 bg-[#3e5349] rounded-full hover:bg-[#4a5f55] transition-colors"
-              >
-                <Image
-                  className="w-5 h-5"
-                  src="/images/telegram/Telegram_logo.svg"
-                  alt="Telegram"
-                  width={20}
-                  height={20}
-                />
-              </a>
-              <a
-                href="https://wa.me"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 bg-[#3e5349] rounded-full hover:bg-[#4a5f55] transition-colors"
-              >
-                <Image
-                  className="w-5 h-5"
-                  src="/images/meta/Print_Glyph_White.png"
-                  alt="WhatsApp"
-                  width={20}
-                  height={20}
-                />
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
+    );
 }
