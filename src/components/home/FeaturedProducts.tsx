@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "antd";
-import axios from "axios";
 import { formatPrice } from "@/utils/format";
 
 interface Product {
@@ -25,10 +24,9 @@ interface Product {
 // Функция для получения избранных товаров
 const fetchFeaturedProducts = async (): Promise<Product[]> => {
   try {
-    const response = await axios.get("/api/products/featured", {
-      params: { limit: 8 },
-    });
-    return response.data;
+    const response = await fetch("/api/products/featured?limit=8");
+    if (!response.ok) throw new Error("Failed to fetch");
+    return await response.json();
   } catch (error) {
     console.error("Failed to fetch featured products:", error);
     return MOCK_PRODUCTS;
