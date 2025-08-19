@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Skeleton } from "antd";
 import { ExternalLink, RefreshCw, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 
 // Данные о брендах с их официальными сайтами
 const BRANDS_DATA = [
@@ -91,8 +90,9 @@ interface BrandInfo {
 const fetchBrandsInfo = async (): Promise<BrandInfo[]> => {
   try {
     // Запрашиваем информацию с нашего API, который парсит сайты брендов
-    const response = await axios.get("/api/brands/info");
-    return response.data;
+    const response = await fetch("/api/brands/info");
+    if (!response.ok) throw new Error("Failed to fetch");
+    return await response.json();
   } catch (error) {
     // Если API недоступен, возвращаем статичные данные
     console.error("Failed to fetch brands info:", error);
@@ -175,6 +175,7 @@ export default function BrandsSection() {
                           src={brand.logo}
                           alt={brand.name}
                           fill
+                          sizes="(max-width: 640px) 80px, (max-width: 1024px) 100px, 120px"
                           className="object-contain"
                         />
                       ) : (
