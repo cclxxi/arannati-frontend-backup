@@ -74,12 +74,12 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3">
               <Logo className="h-12 w-auto" />
               <span className="hidden sm:block text-xl font-bold text-forest dark:text-beige-light">
                 АРАННАТИ
               </span>
-            </Link>
+            </div>
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-8">
