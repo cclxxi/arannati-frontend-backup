@@ -33,6 +33,7 @@
     "antd": "^5.26.4",
     "autoprefixer": "^10.4.21",
     "axios": "^1.10.0",
+    "cheerio": "^1.1.2",
     "dayjs": "^1.11.13",
     "framer-motion": "^11.0.0",
     "js-cookie": "^3.0.5",
