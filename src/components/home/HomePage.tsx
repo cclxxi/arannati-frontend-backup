@@ -357,7 +357,8 @@ export default function HomePage() {
                     alt="Arannati"
                     width={150}
                     height={48}
-                    className="h-12 w-auto"
+                    className="h-12 w-auto object-contain"
+                    style={{ width: "auto", height: "48px" }}
                   />
                 ) : (
                   <Logo className="h-12 w-auto filter brightness-0 invert" />

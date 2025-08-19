@@ -6,45 +6,12 @@ import { ShoppingCart, Heart } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "antd";
+import { api } from "@/lib/api/client";
 
 interface CartWishlistButtonsProps {
   className?: string;
   iconSize?: "sm" | "md";
 }
-
-// Функция для получения количества товаров в корзине
-const fetchCartCount = async (): Promise<number> => {
-  try {
-    const response = await fetch("http://localhost:8080/api/cart/count", {
-      credentials: "include",
-    });
-    if (response.ok) {
-      const data = await response.json();
-      return data.count || 0;
-    }
-    return 0;
-  } catch (error) {
-    console.error("Error fetching cart count:", error);
-    return 0;
-  }
-};
-
-// Функция для получения количества товаров в вишлисте
-const fetchWishlistCount = async (): Promise<number> => {
-  try {
-    const response = await fetch("http://localhost:8080/api/wishlist/count", {
-      credentials: "include",
-    });
-    if (response.ok) {
-      const data = await response.json();
-      return data.count || 0;
-    }
-    return 0;
-  } catch (error) {
-    console.error("Error fetching wishlist count:", error);
-    return 0;
-  }
-};
 
 export default function CartWishlistButtons({
   className = "",
@@ -53,14 +20,20 @@ export default function CartWishlistButtons({
   // Получаем количество товаров в корзине
   const { data: cartCount = 0 } = useQuery({
     queryKey: ["cart-count"],
-    queryFn: fetchCartCount,
+    queryFn: async () => {
+      const response = await api.getCartCount();
+      return response.data.count;
+    },
     refetchInterval: 30000, // Обновляем каждые 30 секунд
   });
 
   // Получаем количество товаров в вишлисте
   const { data: wishlistCount = 0 } = useQuery({
     queryKey: ["wishlist-count"],
-    queryFn: fetchWishlistCount,
+    queryFn: async () => {
+      const response = await api.getWishlistCount();
+      return response.data.count;
+    },
     refetchInterval: 30000,
   });
 

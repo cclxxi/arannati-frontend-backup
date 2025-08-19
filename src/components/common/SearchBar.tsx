@@ -7,6 +7,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import Image from "next/image";
 import Link from "next/link";
 import { formatPrice } from "@/utils/format";
+import { api } from "@/lib/api/client";
 
 interface SearchResult {
   id: number;
@@ -46,16 +47,10 @@ export default function SearchBar({
 
       setIsLoading(true);
       try {
-        const response = await fetch(
-          `http://localhost:8080/api/catalog/products/search?query=${encodeURIComponent(debouncedQuery)}&limit=5`,
+        const response = await api.searchProducts(debouncedQuery, 5);
+        setResults(
+          (response.data as { content: SearchResult[] }).content || [],
         );
-
-        if (response.ok) {
-          const data = await response.json();
-          setResults(data.content || []);
-        } else {
-          setResults([]);
-        }
       } catch (error) {
         console.error("Search error:", error);
         setResults([]);

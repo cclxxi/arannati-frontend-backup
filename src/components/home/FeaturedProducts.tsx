@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "antd";
 import { formatPrice } from "@/utils/format";
+import { api } from "@/lib/api/client";
 
 interface Product {
   id: number;
@@ -37,27 +38,29 @@ interface ApiProduct {
 // Функция для получения избранных товаров
 const fetchFeaturedProducts = async (): Promise<Product[]> => {
   try {
-    // Используем реальный API endpoint из бэкенда
-    const response = await fetch(
-      "http://localhost:8080/api/catalog/products/featured?limit=8",
-    );
-    if (!response.ok) throw new Error("Failed to fetch");
-    const data = await response.json();
+    // Используем API client
+    const response = await api.getProducts({
+      featured: "true",
+      page: "0",
+      size: "8",
+    });
 
     // Преобразуем данные из API в нужный формат
-    return data.map((product: ApiProduct) => ({
-      id: product.id,
-      name: product.name,
-      brand: product.brandName || "Unknown",
-      price: product.regularPrice,
-      discountPrice: product.salePrice,
-      image:
-        product.mainImagePath || "/images/products/product-placeholder.jpg",
-      rating: product.averageRating || 0,
-      reviewsCount: product.reviewsCount || 0,
-      isNew: product.isNew,
-      isBestseller: product.isFeatured,
-    }));
+    return ((response.data as { content: ApiProduct[] }).content || []).map(
+      (product: ApiProduct) => ({
+        id: product.id,
+        name: product.name,
+        brand: product.brandName || "Unknown",
+        price: product.regularPrice,
+        discountPrice: product.salePrice,
+        image:
+          product.mainImagePath || "/images/products/product-placeholder.jpg",
+        rating: product.averageRating || 0,
+        reviewsCount: product.reviewsCount || 0,
+        isNew: product.isNew,
+        isBestseller: product.isFeatured,
+      }),
+    );
   } catch (error) {
     console.error("Failed to fetch featured products:", error);
     // В случае ошибки используем мокап данные
