@@ -76,9 +76,6 @@ export default function HomePage() {
             {/* Logo */}
             <div className="flex items-center space-x-3">
               <Logo className="h-12 w-auto" />
-              <span className="hidden sm:block text-xl font-bold text-forest dark:text-beige-light">
-                АРАННАТИ
-              </span>
             </div>
 
             {/* Desktop Navigation */}
