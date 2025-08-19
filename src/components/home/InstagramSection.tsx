@@ -5,7 +5,6 @@ import { Heart, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "antd";
-import axios from "axios";
 
 interface InstagramPost {
   id: string;
@@ -23,10 +22,9 @@ interface InstagramPost {
 const fetchInstagramPosts = async (): Promise<InstagramPost[]> => {
   try {
     // Запрашиваем посты через наш API
-    const response = await axios.get("/api/instagram/posts", {
-      params: { limit: 3 },
-    });
-    return response.data;
+    const response = await fetch("/api/instagram/posts?limit=3");
+    if (!response.ok) throw new Error("Failed to fetch");
+    return await response.json();
   } catch (error) {
     console.error("Failed to fetch Instagram posts:", error);
     // Возвращаем мокап данные в случае ошибки
@@ -167,6 +165,7 @@ export default function InstagramSection() {
                         src={post.media_url}
                         alt={post.caption || "Instagram post"}
                         fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                     )}
