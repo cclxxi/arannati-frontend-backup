@@ -112,7 +112,7 @@ class NativeWebSocketClient {
   constructor() {
     // Reconnect WS when access token is refreshed
     try {
-      subscribeTokenRefresh((newToken) => {
+      subscribeTokenRefresh((newToken: string) => {
         if (!newToken) {
           this.disconnect();
           return;
