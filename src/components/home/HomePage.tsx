@@ -247,11 +247,13 @@ export default function HomePage() {
               </Link>
             </nav>
 
-            {/* Mobile Login/Account Button */}
-            <AccountButton
-              isMobile={true}
-              onMobileMenuClose={() => setIsMenuOpen(false)}
-            />
+            {/* Mobile Login/Account Button - Hidden on md screens */}
+            <div className="md:hidden">
+              <AccountButton
+                isMobile={true}
+                onMobileMenuClose={() => setIsMenuOpen(false)}
+              />
+            </div>
           </div>
         </div>
       </header>
