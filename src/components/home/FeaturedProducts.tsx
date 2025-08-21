@@ -207,16 +207,16 @@ export default function FeaturedProducts() {
                     )}
 
                     {/* Quick Actions */}
-                    <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-5 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => handleToggleWishlist(product)}
-                        className="w-8 h-8 bg-white/90 dark:bg-forest/90 rounded-full flex items-center justify-center hover:bg-mint text-forest hover:text-white transition-colors"
+                        className="w-8 h-8 bg-white/90 dark:bg-gray/90 rounded-full flex items-center justify-center hover:bg-mint text-forest dark:text-forest hover:text-white transition-colors shadow-md"
                       >
                         <Heart className="w-4 h-4" />
                       </button>
                       <Link
                         href={`/product/${product.id}`}
-                        className="w-8 h-8 bg-white/90 dark:bg-forest/90 rounded-full flex items-center justify-center hover:bg-mint text-forest hover:text-white transition-colors"
+                        className="w-8 h-8 bg-white/90 dark:bg-gray/90 rounded-full flex items-center justify-center hover:bg-mint text-forest dark:text-forest hover:text-white transition-colors shadow-md"
                       >
                         <Eye className="w-4 h-4" />
                       </Link>
