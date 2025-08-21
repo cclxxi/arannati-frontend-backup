@@ -12,6 +12,7 @@ import {
   Sparkles,
   Sun,
   Moon,
+  ChevronDown,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,6 +20,8 @@ import { Logo } from "@/components/ui";
 import { useTheme } from "@/hooks";
 import SearchBar from "@/components/common/SearchBar";
 import CartWishlistButtons from "@/components/common/CartWishlistButtons";
+import { Dropdown, type MenuProps } from "antd";
+import { useRouter } from "next/navigation";
 
 // Импортируем компоненты секций
 import BrandsSection from "./BrandsSection";
@@ -26,10 +29,64 @@ import InstagramSection from "./InstagramSection";
 import FeaturedProducts from "./FeaturedProducts";
 import CatalogSection from "./CatalogSection";
 
+// Данные о брендах
+const BRANDS_DATA = [
+  {
+    id: 1,
+    name: "ATACHE",
+    brandId: 1,
+  },
+  {
+    id: 2,
+    name: "Image Skincare",
+    brandId: 2,
+  },
+  {
+    id: 3,
+    name: "IPH",
+    brandId: 3,
+  },
+  {
+    id: 4,
+    name: "LEVISSIME",
+    brandId: 4,
+  },
+  {
+    id: 5,
+    name: "VAGHEGGI",
+    brandId: 5,
+  },
+  {
+    id: 6,
+    name: "VEC",
+    brandId: 6,
+  },
+  {
+    id: 7,
+    name: "Yon-Ka",
+    brandId: 7,
+  },
+  {
+    id: 8,
+    name: "Liposomal Vitamins",
+    brandId: 8,
+  },
+];
+
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { isDark, toggleTheme } = useTheme();
+  const router = useRouter();
+  
+  // Create brand menu items for dropdown
+  const brandMenuItems: MenuProps['items'] = BRANDS_DATA.map(brand => ({
+    key: brand.id.toString(),
+    label: brand.name,
+    onClick: () => {
+      router.push(`/catalog?brandId=${brand.brandId}`);
+    }
+  }));
 
   useEffect(() => {
     const handleScroll = () => {
@@ -73,12 +130,16 @@ export default function HomePage() {
               >
                 Каталог
               </Link>
-              <Link
-                href="/brands"
-                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium"
+              <Dropdown
+                menu={{ items: brandMenuItems }}
+                placement="bottom"
+                trigger={["hover"]}
               >
-                Бренды
-              </Link>
+                <div className="flex items-center cursor-pointer text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium">
+                  Бренды
+                  <ChevronDown className="ml-1 w-4 h-4" />
+                </div>
+              </Dropdown>
               <Link
                 href="/cosmetologist"
                 className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium"
@@ -160,13 +221,19 @@ export default function HomePage() {
               >
                 Каталог
               </Link>
-              <Link
-                href="/brands"
-                className="block py-2 text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light"
-                onClick={() => setIsMenuOpen(false)}
+              <Dropdown
+                menu={{ 
+                  items: brandMenuItems,
+                  onClick: () => setIsMenuOpen(false)
+                }}
+                placement="bottomLeft"
+                trigger={["click"]}
               >
-                Бренды
-              </Link>
+                <div className="flex items-center justify-between py-2 text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light cursor-pointer">
+                  Бренды
+                  <ChevronDown className="ml-1 w-4 h-4" />
+                </div>
+              </Dropdown>
               <Link
                 href="/cosmetologist"
                 className="block py-2 text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light"
@@ -355,12 +422,16 @@ export default function HomePage() {
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="/brands"
-                    className="hover:text-brown-light transition-colors"
+                  <Dropdown
+                    menu={{ items: brandMenuItems }}
+                    placement="topLeft"
+                    trigger={["hover"]}
                   >
-                    Бренды
-                  </Link>
+                    <div className="flex items-center cursor-pointer hover:text-brown-light transition-colors">
+                      Бренды
+                      <ChevronDown className="ml-1 w-3 h-3" />
+                    </div>
+                  </Dropdown>
                 </li>
                 <li>
                   <Link
