@@ -149,8 +149,8 @@ export default function WishlistDropdown() {
       trigger={["click"]}
       placement="bottomRight"
     >
-      <button className="relative p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors">
-        <Badge count={wishlistCount} size="small" offset={[-5, 5]}>
+      <button className="relative p-2 mt-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors">
+        <Badge count={wishlistCount} size="small" offset={[-5, -5]}>
           <Heart
             className={`w-6 h-6 ${
               wishlistCount > 0

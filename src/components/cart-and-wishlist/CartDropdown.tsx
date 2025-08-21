@@ -160,8 +160,8 @@ export default function CartDropdown() {
       trigger={["click"]}
       placement="bottomRight"
     >
-      <button className="relative p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors">
-        <Badge count={totalCount} size="small" offset={[-5, 5]}>
+      <button className="relative p-2 mt-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors">
+        <Badge count={totalCount} size="small" offset={[-5, -5]}>
           <ShoppingCart className="w-6 h-6 text-forest dark:text-beige-light" />
         </Badge>
       </button>
