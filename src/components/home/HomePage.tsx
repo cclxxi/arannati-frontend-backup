@@ -78,14 +78,14 @@ export default function HomePage() {
   const [scrolled, setScrolled] = useState(false);
   const { isDark, toggleTheme } = useTheme();
   const router = useRouter();
-  
+
   // Create brand menu items for dropdown
-  const brandMenuItems: MenuProps['items'] = BRANDS_DATA.map(brand => ({
+  const brandMenuItems: MenuProps["items"] = BRANDS_DATA.map((brand) => ({
     key: brand.id.toString(),
     label: brand.name,
     onClick: () => {
       router.push(`/catalog?brandId=${brand.brandId}`);
-    }
+    },
   }));
 
   useEffect(() => {
@@ -120,8 +120,8 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <Logo 
-              className={`h-12 sm:h-14 md:h-16 lg:h-18 xl:h-20 w-auto flex-shrink-0 ${!isDark ? 'pt-4 ml-0 lg:mr-4' : 'lg:pr-3'}`}
+            <Logo
+              className={`h-12 sm:h-14 md:h-16 lg:h-18 xl:h-20 w-auto flex-shrink-0 ${!isDark ? "pt-4 ml-0 lg:mr-4" : "lg:pr-3"}`}
               size="lg"
             />
 
@@ -225,9 +225,9 @@ export default function HomePage() {
                 Каталог
               </Link>
               <Dropdown
-                menu={{ 
+                menu={{
                   items: brandMenuItems,
-                  onClick: () => setIsMenuOpen(false)
+                  onClick: () => setIsMenuOpen(false),
                 }}
                 placement="bottomLeft"
                 trigger={["click"]}
