@@ -158,7 +158,7 @@ export default function HomePage() {
             </nav>
 
             {/* Search Bar - Desktop */}
-            <SearchBar className="hidden md:block w-80 xl:w-96 ml-4" />
+            <SearchBar className="hidden lg:block w-80 xl:w-96 ml-4" />
 
             {/* Right Side Icons */}
             <div className="flex items-center space-x-2 sm:space-x-4 ml-4">
@@ -181,7 +181,7 @@ export default function HomePage() {
               {/* Login Button */}
               <Link
                 href="/auth/login"
-                className="hidden sm:flex items-center space-x-2 bg-brown dark:bg-brown-light text-white px-4 py-2 rounded-full hover:bg-brown-light dark:hover:bg-brown transition-colors"
+                className="hidden md:flex items-center space-x-2 bg-brown dark:bg-brown-light text-white px-4 py-2 rounded-full hover:bg-brown-light dark:hover:bg-brown transition-colors"
               >
                 <User className="w-5 h-5" />
                 <span>Войти</span>
