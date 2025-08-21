@@ -1,279 +1,275 @@
+// src/components/home/FeaturedProducts.tsx
 "use client";
 
-import React from "react";
-import { ShoppingCart, Heart, Eye, Star } from "lucide-react";
+import React, { useState } from "react";
+import { Heart, ShoppingCart, Eye, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "antd";
-import { formatPrice } from "@/utils/format";
-import { api } from "@/lib/api/client";
-
-interface Product {
-  id: number;
-  name: string;
-  brand: string;
-  price: number;
-  discountPrice?: number;
-  image: string;
-  rating: number;
-  reviewsCount: number;
-  isNew?: boolean;
-  isBestseller?: boolean;
-}
-
-interface ApiProduct {
-  id: number;
-  name: string;
-  brandName?: string;
-  regularPrice: number;
-  salePrice?: number;
-  mainImagePath?: string;
-  averageRating?: number;
-  reviewsCount?: number;
-  isNew?: boolean;
-  isFeatured?: boolean;
-}
-
-// Функция для получения избранных товаров
-const fetchFeaturedProducts = async (): Promise<Product[]> => {
-  try {
-    // Используем API client
-    const response = await api.getProducts({
-      featured: "true",
-      page: "0",
-      size: "8",
-    });
-
-    // Преобразуем данные из API в нужный формат
-    return ((response.data as { content: ApiProduct[] }).content || []).map(
-      (product: ApiProduct) => ({
-        id: product.id,
-        name: product.name,
-        brand: product.brandName || "Unknown",
-        price: product.regularPrice,
-        discountPrice: product.salePrice,
-        image:
-          product.mainImagePath || "/images/products/product-placeholder.jpg",
-        rating: product.averageRating || 0,
-        reviewsCount: product.reviewsCount || 0,
-        isNew: product.isNew,
-        isBestseller: product.isFeatured,
-      }),
-    );
-  } catch (error) {
-    console.error("Failed to fetch featured products:", error);
-    // В случае ошибки используем мокап данные
-    return MOCK_PRODUCTS;
-  }
-};
-
-// Мокап данные
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: 1,
-    name: "Alpha Complex Rapid Exfoliator",
-    brand: "Holy Land",
-    price: 24500,
-    discountPrice: 19600,
-    image: "/images/products/hl-alpha-complex.jpg",
-    rating: 4.8,
-    reviewsCount: 124,
-    isNew: true,
-  },
-  {
-    id: 2,
-    name: "Unstress Probiotic Day Cream SPF 15",
-    brand: "Christina",
-    price: 32000,
-    image: "/images/products/christina-unstress.jpg",
-    rating: 4.9,
-    reviewsCount: 89,
-    isBestseller: true,
-  },
-  {
-    id: 3,
-    name: "Phyto Corrective Gel",
-    brand: "Image Skincare",
-    price: 28900,
-    image: "/images/products/image-phyto.jpg",
-    rating: 4.7,
-    reviewsCount: 156,
-  },
-  {
-    id: 4,
-    name: "Hydra Vital Factor K",
-    brand: "Janssen Cosmetics",
-    price: 18500,
-    discountPrice: 14800,
-    image: "/images/products/janssen-hydra.jpg",
-    rating: 4.6,
-    reviewsCount: 203,
-  },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, auth } from "@/lib/api/client";
+import { message } from "antd";
+import AuthRequiredModal from "@/components/common/AuthRequiredModal";
+import type { ProductDTO, PaginatedResponse } from "@/types/api";
 
 export default function FeaturedProducts() {
-  const { data: products = MOCK_PRODUCTS, isLoading } = useQuery({
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalConfig, setAuthModalConfig] = useState({
+    title: "Требуется авторизация",
+    description: "Для выполнения этого действия необходимо войти в систему",
+  });
+  const queryClient = useQueryClient();
+  const isAuthenticated = auth.isAuthenticated();
+
+  // Загружаем популярные товары
+  const { data: products = [], isLoading } = useQuery({
     queryKey: ["featured-products"],
-    queryFn: fetchFeaturedProducts,
-    staleTime: 1000 * 60 * 15, // Кешируем на 15 минут
+    queryFn: async () => {
+      const response = await api.getProducts({
+        size: "8",
+        sort: "rating,desc", // Сортируем по рейтингу для получения популярных товаров
+      });
+
+      // Обрабатываем разные форматы ответа
+      if (Array.isArray(response.data)) {
+        return response.data;
+      } else if (
+        response.data &&
+        typeof response.data === "object" &&
+        "content" in response.data &&
+        Array.isArray((response.data as PaginatedResponse<ProductDTO>).content)
+      ) {
+        return (response.data as PaginatedResponse<ProductDTO>).content;
+      }
+      return [];
+    },
   });
 
-  return (
-    <section className="py-16 sm:py-20 px-4">
-      <div className="container mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-forest dark:text-beige-light mb-4 animate-fade-in">
+  // Мутация для добавления в корзину
+  const addToCartMutation = useMutation({
+    mutationFn: (productId: number) => api.addToCart(productId, 1),
+    onSuccess: () => {
+      message.success("Товар добавлен в корзину");
+      queryClient.invalidateQueries({ queryKey: ["cart-count"] });
+    },
+    onError: () => {
+      message.error("Не удалось добавить товар в корзину");
+    },
+  });
+
+  // Мутация для добавления в избранное
+  const toggleWishlistMutation = useMutation({
+    mutationFn: (productId: number) => api.toggleWishlist(productId),
+    onSuccess: () => {
+      message.success("Товар добавлен в избранное");
+      queryClient.invalidateQueries({ queryKey: ["wishlist-count"] });
+    },
+    onError: () => {
+      message.error("Не удалось добавить товар в избранное");
+    },
+  });
+
+  const handleAddToCart = (product: ProductDTO) => {
+    if (!isAuthenticated) {
+      setAuthModalConfig({
+        title: "Войдите, чтобы добавить в корзину",
+        description: `Для добавления товара "${product.name}" в корзину необходимо войти в систему`,
+      });
+      setShowAuthModal(true);
+      return;
+    }
+    addToCartMutation.mutate(product.id!);
+  };
+
+  const handleToggleWishlist = (product: ProductDTO) => {
+    if (!isAuthenticated) {
+      setAuthModalConfig({
+        title: "Войдите, чтобы добавить в избранное",
+        description: `Для добавления товара "${product.name}" в избранное необходимо войти в систему`,
+      });
+      setShowAuthModal(true);
+      return;
+    }
+    toggleWishlistMutation.mutate(product.id!);
+  };
+
+  const formatPrice = (price: number | string) => {
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency: "KZT",
+      minimumFractionDigits: 0,
+    }).format(Number(price));
+  };
+
+  if (isLoading) {
+    return (
+      <section className="py-16 px-4">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-bold text-forest dark:text-beige-light mb-8">
             Популярные товары
           </h2>
-          <p className="text-brown dark:text-beige max-w-2xl mx-auto animate-fade-in animation-delay-200">
-            Бестселлеры и новинки профессиональной косметики
-          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white dark:bg-forest/30 rounded-2xl p-4 animate-pulse"
+              >
+                <div className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-xl mb-4"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+              </div>
+            ))}
+          </div>
         </div>
+      </section>
+    );
+  }
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {isLoading
-            ? // Loading skeletons
-              Array.from({ length: 8 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="bg-white dark:bg-forest/50 rounded-2xl p-4"
-                >
-                  <Skeleton.Image className="w-full aspect-square mb-4" />
-                  <Skeleton active paragraph={{ rows: 3 }} />
-                </div>
-              ))
-            : // Product cards
-              products.slice(0, 8).map((product, index) => (
+  return (
+    <>
+      <section className="py-16 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-forest dark:text-beige-light">
+              Популярные товары
+            </h2>
+            <Link
+              href="/catalog"
+              className="text-mint hover:text-forest dark:hover:text-beige-light transition-colors flex items-center gap-1"
+            >
+              Все товары
+              <span>→</span>
+            </Link>
+          </div>
+
+          {products.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 dark:text-gray-400">
+                Товары не найдены
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {products.slice(0, 8).map((product: ProductDTO) => (
                 <div
                   key={product.id}
-                  className={`group bg-white dark:bg-forest/50 rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 animate-scale-in`}
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  className="group bg-white dark:bg-forest/30 backdrop-blur-sm rounded-2xl p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                 >
-                  {/* Product Image */}
-                  <div className="relative aspect-square overflow-hidden">
-                    {/* Badges */}
-                    <div className="absolute top-2 left-2 z-10 space-y-2">
-                      {product.isNew && (
-                        <span className="block bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                          Новинка
-                        </span>
-                      )}
-                      {product.isBestseller && (
-                        <span className="block bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                          Хит
-                        </span>
-                      )}
-                      {product.discountPrice && (
-                        <span className="block bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                          -
-                          {Math.round(
-                            (1 - product.discountPrice / product.price) * 100,
-                          )}
-                          %
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Wishlist Button */}
-                    <button className="absolute top-2 right-2 z-10 p-2 bg-white/80 dark:bg-forest/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <Heart className="w-4 h-4 text-forest dark:text-beige-light" />
-                    </button>
-
-                    {/* Product Image or Placeholder */}
-                    {product.image.startsWith("/") ? (
-                      <div className="w-full h-full bg-gradient-to-br from-beige-light to-mint/20 flex items-center justify-center">
-                        <span className="text-4xl">🧴</span>
-                      </div>
-                    ) : (
+                  <div className="relative aspect-square mb-4 overflow-hidden rounded-xl">
+                    {product.images && product.images.length > 0 ? (
                       <Image
-                        src={product.image}
+                        src={
+                          product.images &&
+                          product.images.length > 0 &&
+                          product.images[0]
+                            ? product.images[0].imagePath || "/placeholder.jpg"
+                            : "/placeholder.jpg"
+                        }
                         alt={product.name}
                         fill
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
-                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        className="object-cover group-hover:scale-110 transition-transform duration-300"
                       />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-mint/20 to-forest/20 flex items-center justify-center">
+                        <span className="text-6xl">🧴</span>
+                      </div>
                     )}
 
-                    {/* Quick Actions Overlay */}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-2">
+                    {/* Badges */}
+                    {product.salePrice && (
+                      <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                        -
+                        {Math.round(
+                          ((Number(product.regularPrice) -
+                            Number(product.salePrice)) /
+                            Number(product.regularPrice)) *
+                            100,
+                        )}
+                        %
+                      </span>
+                    )}
+
+                    {/* Quick Actions */}
+                    <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleToggleWishlist(product)}
+                        className="w-8 h-8 bg-white/90 dark:bg-forest/90 rounded-full flex items-center justify-center hover:bg-mint text-forest hover:text-white transition-colors"
+                      >
+                        <Heart className="w-4 h-4" />
+                      </button>
                       <Link
                         href={`/product/${product.id}`}
-                        className="p-3 bg-white rounded-full text-forest hover:bg-beige-light transition-colors"
+                        className="w-8 h-8 bg-white/90 dark:bg-forest/90 rounded-full flex items-center justify-center hover:bg-mint text-forest hover:text-white transition-colors"
                       >
-                        <Eye className="w-5 h-5" />
+                        <Eye className="w-4 h-4" />
                       </Link>
-                      <button className="p-3 bg-brown text-white rounded-full hover:bg-brown-light transition-colors">
-                        <ShoppingCart className="w-5 h-5" />
-                      </button>
                     </div>
                   </div>
 
-                  {/* Product Info */}
-                  <div className="p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      {product.brand}
-                    </p>
-                    <h3 className="font-semibold text-forest dark:text-beige-light text-sm mb-2 line-clamp-2 min-h-[2.5rem]">
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-forest dark:text-beige-light line-clamp-2 min-h-[48px]">
                       {product.name}
                     </h3>
 
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {product.brandName}
+                    </p>
+
                     {/* Rating */}
-                    <div className="flex items-center space-x-1 mb-2">
-                      <div className="flex">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-3 h-3 ${
-                              i < Math.floor(product.rating)
-                                ? "text-yellow-400 fill-current"
-                                : "text-gray-300"
-                            }`}
-                          />
-                        ))}
+                    {product.averageRating && (
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          {product.averageRating.toFixed(1)}
+                        </span>
+                        {product.reviewCount && (
+                          <span className="text-sm text-gray-400 dark:text-gray-500">
+                            ({product.reviewCount})
+                          </span>
+                        )}
                       </div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        ({product.reviewsCount})
-                      </span>
-                    </div>
+                    )}
 
                     {/* Price */}
                     <div className="flex items-center justify-between">
                       <div>
-                        {product.discountPrice ? (
+                        {product.salePrice ? (
                           <>
-                            <span className="text-lg font-bold text-red-500">
-                              {formatPrice(product.discountPrice)}
-                            </span>
-                            <span className="text-sm text-gray-500 line-through ml-2">
-                              {formatPrice(product.price)}
-                            </span>
+                            <p className="text-lg font-bold text-red-600 dark:text-red-400">
+                              {formatPrice(product.salePrice)}
+                            </p>
+                            <p className="text-sm text-gray-500 line-through">
+                              {formatPrice(product.regularPrice)}
+                            </p>
                           </>
                         ) : (
-                          <span className="text-lg font-bold text-forest dark:text-beige-light">
-                            {formatPrice(product.price)}
-                          </span>
+                          <p className="text-lg font-bold text-forest dark:text-beige-light">
+                            {formatPrice(product.regularPrice)}
+                          </p>
                         )}
                       </div>
+                      <button
+                        onClick={() => handleAddToCart(product)}
+                        className="w-10 h-10 bg-gradient-to-r from-mint to-forest rounded-full flex items-center justify-center text-white hover:shadow-lg transition-all duration-300 transform hover:scale-110"
+                      >
+                        <ShoppingCart className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
         </div>
+      </section>
 
-        {/* View All Button */}
-        <div className="text-center mt-12 animate-fade-in">
-          <Link
-            href="/catalog"
-            className="inline-flex items-center space-x-2 bg-brown dark:bg-brown-light text-white px-8 py-4 rounded-full hover:bg-brown-light dark:hover:bg-brown transition-colors group"
-          >
-            <span>Смотреть весь каталог</span>
-            <ShoppingCart className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </Link>
-        </div>
-      </div>
-    </section>
+      {/* Modal for auth required */}
+      <AuthRequiredModal
+        visible={showAuthModal}
+        onCloseAction={() => setShowAuthModal(false)}
+        title={authModalConfig.title}
+        description={authModalConfig.description}
+      />
+    </>
   );
 }

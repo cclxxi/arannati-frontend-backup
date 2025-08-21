@@ -1,74 +1,84 @@
+// src/components/common/SearchBar.tsx
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useDebounce } from "@/hooks/useDebounce";
 import Image from "next/image";
 import Link from "next/link";
-import { formatPrice } from "@/utils/format";
 import { api } from "@/lib/api/client";
-
-interface SearchResult {
-  id: number;
-  name: string;
-  brandName: string;
-  regularPrice: number;
-  salePrice?: number;
-  mainImagePath?: string;
-  sku: string;
-}
+import { debounce } from "lodash";
+import type { ProductDTO, PaginatedResponse } from "@/types/api";
 
 interface SearchBarProps {
-  className?: string;
   placeholder?: string;
+  className?: string;
+  onSearch?: (query: string) => void;
 }
 
 export default function SearchBar({
-  className = "",
   placeholder = "Поиск товаров...",
+  className = "",
+  onSearch,
 }: SearchBarProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<ProductDTO[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
 
-  const debouncedQuery = useDebounce(query, 300);
-
-  // Поиск товаров
-  useEffect(() => {
-    const searchProducts = async () => {
-      if (debouncedQuery.length < 2) {
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    debounce(async (searchQuery: string) => {
+      if (searchQuery.length < 2) {
         setResults([]);
+        setIsLoading(false);
         return;
       }
 
       setIsLoading(true);
       try {
-        const response = await api.searchProducts(debouncedQuery, 5);
-        setResults(
-          (response.data as { content: SearchResult[] }).content || [],
-        );
+        const response = await api.searchProducts(searchQuery, 5);
+        // Проверяем, что ответ содержит массив продуктов
+        if (response.data && Array.isArray(response.data)) {
+          setResults(response.data);
+        } else if (
+          response.data &&
+          typeof response.data === "object" &&
+          "content" in response.data &&
+          Array.isArray(
+            (response.data as PaginatedResponse<ProductDTO>).content,
+          )
+        ) {
+          // Spring Boot Page response
+          setResults((response.data as PaginatedResponse<ProductDTO>).content);
+        } else {
+          setResults([]);
+        }
       } catch (error) {
         console.error("Search error:", error);
         setResults([]);
       } finally {
         setIsLoading(false);
       }
-    };
+    }, 300),
+    [],
+  );
 
-    searchProducts();
-  }, [debouncedQuery]);
+  useEffect(() => {
+    if (query.length >= 2) {
+      debouncedSearch(query);
+    } else {
+      setResults([]);
+      setIsLoading(false);
+    }
+  }, [query, debouncedSearch]);
 
-  // Закрытие результатов при клике вне
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as HTMLElement;
+      if (!target.closest(".search-container")) {
         setShowResults(false);
       }
     };
@@ -77,11 +87,15 @@ export default function SearchBar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      router.push(`/catalog?search=${encodeURIComponent(query.trim())}`);
       setShowResults(false);
+      if (onSearch) {
+        onSearch(query);
+      } else {
+        router.push(`/search?q=${encodeURIComponent(query)}`);
+      }
     }
   };
 
@@ -91,11 +105,19 @@ export default function SearchBar({
     setShowResults(false);
   };
 
+  const formatPrice = (price: number | string) => {
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency: "KZT",
+      minimumFractionDigits: 0,
+    }).format(Number(price));
+  };
+
   return (
-    <div ref={searchRef} className={`relative ${className}`}>
-      <form onSubmit={handleSearch}>
-        <div className="flex items-center bg-white/80 dark:bg-forest/50 backdrop-blur rounded-full px-4 py-2.5">
-          <Search className="text-gray-400 dark:text-gray-500 w-5 h-5 mr-2 flex-shrink-0" />
+    <div className={`relative search-container ${className}`}>
+      <form onSubmit={handleSubmit}>
+        <div className="flex items-center bg-white/80 dark:bg-forest/30 backdrop-blur-md rounded-full px-4 py-2 border border-gray-200 dark:border-gray-700">
+          <Search className="w-5 h-5 text-gray-500 mr-2 flex-shrink-0" />
           <input
             type="text"
             placeholder={placeholder}
@@ -137,9 +159,16 @@ export default function SearchBar({
                     className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-forest/50 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"
                   >
                     <div className="w-12 h-12 relative mr-3 flex-shrink-0">
-                      {product.mainImagePath ? (
+                      {product.images && product.images.length > 0 ? (
                         <Image
-                          src={product.mainImagePath}
+                          src={
+                            product.images &&
+                            product.images.length > 0 &&
+                            product.images[0]
+                              ? product.images[0].imagePath ||
+                                "/placeholder.jpg"
+                              : "/placeholder.jpg"
+                          }
                           alt={product.name}
                           fill
                           sizes="48px"
@@ -161,16 +190,16 @@ export default function SearchBar({
                     </div>
                     <div className="text-right ml-3">
                       {product.salePrice ? (
-                        <>
-                          <p className="text-sm font-bold text-red-500">
+                        <div>
+                          <p className="text-sm font-semibold text-red-600 dark:text-red-400">
                             {formatPrice(product.salePrice)}
                           </p>
                           <p className="text-xs text-gray-500 line-through">
                             {formatPrice(product.regularPrice)}
                           </p>
-                        </>
+                        </div>
                       ) : (
-                        <p className="text-sm font-bold text-forest dark:text-beige-light">
+                        <p className="text-sm font-semibold text-forest dark:text-beige-light">
                           {formatPrice(product.regularPrice)}
                         </p>
                       )}
@@ -179,18 +208,23 @@ export default function SearchBar({
                 ))}
               </div>
               <Link
-                href={`/catalog?search=${encodeURIComponent(query)}`}
+                href={`/search?q=${encodeURIComponent(query)}`}
                 onClick={() => setShowResults(false)}
-                className="block p-3 text-center text-sm text-brown dark:text-brown-light hover:bg-gray-50 dark:hover:bg-forest/50 transition-colors border-t border-gray-100 dark:border-gray-700"
+                className="block p-3 text-center text-sm text-mint hover:bg-gray-50 dark:hover:bg-forest/50 transition-colors border-t border-gray-100 dark:border-gray-700"
               >
-                Показать все результаты
+                Показать все результаты →
               </Link>
             </>
-          ) : (
-            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-              Ничего не найдено
+          ) : query.length >= 2 ? (
+            <div className="p-8 text-center">
+              <p className="text-gray-500 dark:text-gray-400 mb-2">
+                По запросу &quot;{query}&quot; ничего не найдено
+              </p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">
+                Попробуйте изменить запрос
+              </p>
             </div>
-          )}
+          ) : null}
         </div>
       )}
     </div>

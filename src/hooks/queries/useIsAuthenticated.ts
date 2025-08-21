@@ -1,12 +1,12 @@
 // src/hooks/queries/useIsAuthenticated.ts
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores";
-import { useCurrentUser } from "@/hooks";
+import { useAuth } from "@/hooks";
 import { auth } from "@/lib/api/client";
 
 export function useIsAuthenticated() {
   const { user, isAuthenticated, setUser, setLoading } = useAuthStore();
-  const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
+  const { user: currentUser, isLoading: isLoadingUser } = useAuth();
 
   useEffect(() => {
     // Проверяем токен при монтировании

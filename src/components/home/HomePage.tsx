@@ -24,16 +24,7 @@ import CartWishlistButtons from "@/components/common/CartWishlistButtons";
 import BrandsSection from "./BrandsSection";
 import InstagramSection from "./InstagramSection";
 import FeaturedProducts from "./FeaturedProducts";
-
-// Категории каталога
-const CATEGORIES = [
-  { id: 1, name: "Очищение", icon: "💧", count: 156 },
-  { id: 2, name: "Увлажнение", icon: "💦", count: 203 },
-  { id: 3, name: "Питание", icon: "🌿", count: 178 },
-  { id: 4, name: "Антивозрастной уход", icon: "✨", count: 145 },
-  { id: 5, name: "Защита от солнца", icon: "☀️", count: 89 },
-  { id: 6, name: "Маски и пилинги", icon: "🎭", count: 167 },
-];
+import CatalogSection from "./CatalogSection";
 
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -304,39 +295,7 @@ export default function HomePage() {
       <BrandsSection />
 
       {/* Catalog Section */}
-      <section className="py-16 sm:py-20 px-4">
-        <div className="container mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-forest dark:text-beige-light mb-4 animate-fade-in">
-              Каталог продукции
-            </h2>
-            <p className="text-brown dark:text-beige max-w-2xl mx-auto animate-fade-in animation-delay-200">
-              Более 2000 наименований профессиональной косметики для решения
-              любых задач
-            </p>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {CATEGORIES.map((category, index) => (
-              <a
-                key={category.id}
-                href={`/catalog?category=${category.id}`}
-                className="group bg-white/80 dark:bg-forest/50 backdrop-blur rounded-2xl p-4 sm:p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 animate-scale-in"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="text-3xl sm:text-4xl mb-3 transform group-hover:scale-110 transition-transform">
-                  {category.icon}
-                </div>
-                <h3 className="font-semibold text-forest dark:text-beige-light text-sm sm:text-base">
-                  {category.name}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {category.count} товаров
-                </p>
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CatalogSection />
 
       {/* Featured Products */}
       <FeaturedProducts />

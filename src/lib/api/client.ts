@@ -17,21 +17,11 @@ export interface ApiResponse<T> {
 // Define common request data types
 export type ApiRequestData = Record<string, unknown> | FormData | object | null;
 
-// Token refresh callback type
-type TokenRefreshCallback = (token: string) => void;
-const tokenRefreshCallbacks: TokenRefreshCallback[] = [];
+// Token refresh subscribers
+const tokenRefreshSubscribers: Array<(token: string) => void> = [];
 
-// Function to subscribe to token refresh events
-export function subscribeTokenRefresh(
-  callback: TokenRefreshCallback,
-): () => void {
-  tokenRefreshCallbacks.push(callback);
-  return () => {
-    const index = tokenRefreshCallbacks.indexOf(callback);
-    if (index !== -1) {
-      tokenRefreshCallbacks.splice(index, 1);
-    }
-  };
+export function subscribeTokenRefresh(callback: (token: string) => void): void {
+  tokenRefreshSubscribers.push(callback);
 }
 
 // Auth helper object
@@ -47,6 +37,9 @@ export const auth = {
     if (refreshToken) {
       setCookie("refresh-token", refreshToken);
     }
+
+    // Notify subscribers about token refresh
+    tokenRefreshSubscribers.forEach((callback) => callback(accessToken));
   },
   getTokens: () => {
     const accessToken = getCookie("auth-token");
@@ -66,16 +59,15 @@ export const auth = {
   isAuthenticated: () => {
     return !!getCookie("auth-token");
   },
-  // Added for websocket-native.ts compatibility
-  ensureValidToken: async (): Promise<string> => {
+  ensureValidToken: async (): Promise<string | null> => {
     const tokens = auth.getTokens();
-    if (!tokens?.accessToken) throw new Error("No access token");
+    if (!tokens) return null;
     return tokens.accessToken;
   },
-  getCurrentUserId: (): string => {
-    // This is a stub - in a real implementation, this would decode the JWT token
-    // and extract the user ID
-    return "current-user-id";
+  getCurrentUserId: (): string | null => {
+    // This is a placeholder. In a real implementation, you would decode the JWT token
+    // to get the user ID or retrieve it from local storage/state
+    return null;
   },
 };
 
@@ -100,6 +92,11 @@ export class ApiClient {
   ): Promise<ApiResponse<T>> {
     const { requiresAuth = false, headers = {}, ...restOptions } = options;
 
+    // Если запрос требует авторизации, но токена нет - возвращаем пустой результат
+    if (requiresAuth && !auth.isAuthenticated()) {
+      throw new Error("Authentication required");
+    }
+
     const requestOptions: RequestInit = {
       ...restOptions,
       headers: {
@@ -115,14 +112,23 @@ export class ApiClient {
       const response = await fetch(url, requestOptions);
 
       // Обрабатываем разные статусы ответа
-      if (response.status === 401 && requiresAuth) {
+      if (response.status === 401) {
         // Токен истек или не валиден
-        throw new Error("Unauthorized");
+        auth.removeTokens();
+        if (requiresAuth) {
+          throw new Error("Unauthorized");
+        }
+        // Для публичных эндпоинтов возвращаем пустой результат
+        return { data: {} as T };
       }
 
       if (response.status === 403) {
-        // Доступ запрещен
-        throw new Error("Forbidden");
+        // Доступ запрещен - пользователь не авторизован
+        if (requiresAuth) {
+          throw new Error("Forbidden");
+        }
+        // Для публичных эндпоинтов возвращаем пустой результат
+        return { data: {} as T };
       }
 
       if (!response.ok) {
@@ -140,6 +146,14 @@ export class ApiClient {
       const responseData = await response.json();
       return { data: responseData };
     } catch (error) {
+      // Не логируем ошибки авторизации для публичных запросов
+      if (
+        error instanceof Error &&
+        (error.message === "Unauthorized" || error.message === "Forbidden") &&
+        !requiresAuth
+      ) {
+        return { data: {} as T };
+      }
       console.error(`API request failed: ${endpoint}`, error);
       throw error;
     }
@@ -192,7 +206,6 @@ export class ApiClient {
 }
 
 // Экспортируем удобные функции для использования
-// Create a default export for apiClient
 const apiClient = {
   get: ApiClient.get.bind(ApiClient),
   post: ApiClient.post.bind(ApiClient),
@@ -220,11 +233,19 @@ export const api = {
     );
   },
 
-  // Cart
-  getCartCount: () =>
-    ApiClient.get<{ count: number }>("/cart/count").catch(() => ({
-      data: { count: 0 },
-    })),
+  // Cart - только для авторизованных пользователей
+  getCartCount: async () => {
+    if (!auth.isAuthenticated()) {
+      return { data: { count: 0 } };
+    }
+    try {
+      return await ApiClient.get<{ count: number }>("/cart/count", {
+        requiresAuth: true,
+      });
+    } catch {
+      return { data: { count: 0 } };
+    }
+  },
 
   getCart: () => ApiClient.get("/cart", { requiresAuth: true }),
 
@@ -236,16 +257,24 @@ export const api = {
     );
   },
 
-  // Wishlist
-  getWishlistCount: () =>
-    ApiClient.get<{ count: number }>("/wishlist/count").catch(() => ({
-      data: { count: 0 },
-    })),
+  // Wishlist - только для авторизованных пользователей
+  getWishlistCount: async () => {
+    if (!auth.isAuthenticated()) {
+      return { data: { count: 0 } };
+    }
+    try {
+      return await ApiClient.get<{ count: number }>("/wishlist/count", {
+        requiresAuth: true,
+      });
+    } catch {
+      return { data: { count: 0 } };
+    }
+  },
 
   getWishlist: () => ApiClient.get("/wishlist", { requiresAuth: true }),
 
   toggleWishlist: (productId: number) => {
-    return ApiClient.post(`/wishlist/toggle/${productId}`, null, {
+    return ApiClient.put(`/wishlist/toggle/${productId}`, null, {
       requiresAuth: true,
     });
   },
