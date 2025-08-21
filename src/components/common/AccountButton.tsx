@@ -43,10 +43,10 @@ export default function AccountButton({
     return (
       <Link
         href={APP_ROUTES.auth.login}
-        className={`${isMobile ? "flex items-center justify-center" : "hidden md:flex items-center"} space-x-2 bg-brown dark:bg-brown-light text-white px-4 ${isMobile ? "py-3" : "py-2"} rounded-full transition-all duration-200 ease-out transform hover:bg-brown-light dark:hover:bg-brown hover:scale-105 hover:shadow-lg hover:-translate-y-0.5 ${isMobile ? "w-full" : ""} ${className}`}
+        className={`${isMobile ? "flex items-center justify-center" : "hidden md:flex items-center"} space-x-2 bg-brown dark:bg-brown-light text-white px-3 ${isMobile ? "py-2" : "py-2"} rounded-full transition-all duration-200 ease-out transform hover:bg-brown-light dark:hover:bg-brown hover:scale-105 hover:shadow-lg hover:-translate-y-0.5 ${isMobile ? "text-sm" : ""} ${className}`}
         onClick={onMobileMenuClose}
       >
-        <User className="w-5 h-5" />
+        <User className={`${isMobile ? "w-4 h-4" : "w-5 h-5"}`} />
         <span>Войти</span>
       </Link>
     );
@@ -55,21 +55,21 @@ export default function AccountButton({
   // Mobile stays simple
   if (isMobile) {
     return (
-      <div className={`space-y-2 w-full ${className}`}>
+      <div className={`flex items-center space-x-2 ${className}`}>
         <Link
           href={getDashboardRoute()}
-          className="flex items-center justify-center space-x-2 bg-brown dark:bg-brown-light text-white px-4 py-3 rounded-full transition-all duration-200 ease-out transform hover:bg-brown-light dark:hover:bg-brown hover:scale-105 hover:shadow-lg w-full"
+          className="flex items-center space-x-2 bg-brown dark:bg-brown-light text-white px-3 py-2 rounded-full transition-all duration-200 ease-out transform hover:bg-brown-light dark:hover:bg-brown hover:scale-105 hover:shadow-lg text-sm"
           onClick={onMobileMenuClose}
         >
-          <User className="w-5 h-5" />
+          <User className="w-4 h-4" />
           <span>{user?.firstName || "Аккаунт"}</span>
         </Link>
         <button
           onClick={handleLogout}
-          className="flex items-center justify-center space-x-2 bg-red-600 dark:bg-red-700 text-white px-4 py-3 rounded-full transition-all duration-200 ease-out transform hover:bg-red-700 dark:hover:bg-red-600 hover:scale-105 hover:shadow-lg w-full"
+          className="flex items-center space-x-2 bg-red-600 dark:bg-red-700 text-white px-3 py-2 rounded-full transition-all duration-200 ease-out transform hover:bg-red-700 dark:hover:bg-red-600 hover:scale-105 hover:shadow-lg text-sm"
           aria-label="Выйти"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="w-4 h-4" />
           <span>Выйти</span>
         </button>
       </div>
