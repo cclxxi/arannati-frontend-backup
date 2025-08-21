@@ -1,17 +1,18 @@
 // src/hooks/queries/useIsAuthenticated.ts
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores";
 import { useAuth } from "@/hooks";
 import { auth } from "@/lib/api/client";
 
 export function useIsAuthenticated() {
-  const { user, isAuthenticated, setUser, setLoading } = useAuthStore();
+  const { user, isAuthenticated, setUser, isLoading: storeLoading } = useAuthStore();
   const { user: currentUser, isLoading: isLoadingUser } = useAuth();
+  const [localLoading, setLocalLoading] = useState(false);
 
   useEffect(() => {
     // Проверяем токен при монтировании
     const checkAuth = async () => {
-      setLoading(true);
+      setLocalLoading(true);
 
       try {
         // Проверяем наличие валидного токена
@@ -25,16 +26,16 @@ export function useIsAuthenticated() {
           setUser(null);
         }
       } finally {
-        setLoading(false);
+        setLocalLoading(false);
       }
     };
 
     checkAuth();
-  }, [currentUser, user, setUser, setLoading]);
+  }, [currentUser, user, setUser]);
 
   return {
     user,
     isAuthenticated,
-    isLoading: isLoadingUser,
+    isLoading: localLoading || storeLoading || isLoadingUser,
   };
 }

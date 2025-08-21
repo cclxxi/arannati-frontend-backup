@@ -1,11 +1,10 @@
-import { Metadata } from "next";
+"use client";
+
 import { DashboardClient } from "./dashboard-client";
+import { withAuth } from "@/components/auth/withAuth";
 
-export const metadata: Metadata = {
-  title: "Дашборд | Arannati Shop",
-  description: "Панель управления магазином Arannati",
-};
-
-export default function DashboardPage() {
+function DashboardPage() {
   return <DashboardClient />;
 }
+
+export default withAuth(DashboardPage);

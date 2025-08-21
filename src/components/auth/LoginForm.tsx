@@ -1,8 +1,6 @@
 "use client";
 
 // import { useState } from "react";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Form, Input, Alert /*, Space*/ } from "antd";
@@ -20,7 +18,6 @@ import toast from "react-hot-toast";
 
 export function LoginForm() {
   // const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
   const { mutate: login, isLoading, error } = useLogin();
 
   const {
@@ -37,29 +34,6 @@ export function LoginForm() {
     },
   });
 
-  // Handle successful login redirection
-  useEffect(() => {
-    // Check if user is authenticated and redirect
-    const checkAuthAndRedirect = () => {
-      const token = localStorage.getItem('auth-storage');
-      if (token) {
-        const authData = JSON.parse(token);
-        if (authData?.state?.isAuthenticated) {
-          toast.success("Успешный вход в систему!");
-          // Redirect to home page after successful login
-          setTimeout(() => {
-            router.push('/');
-          }, 1000);
-        }
-      }
-    };
-
-    // Check periodically for authentication state changes
-    const interval = setInterval(checkAuthAndRedirect, 500);
-    
-    // Cleanup interval
-    return () => clearInterval(interval);
-  }, [router]);
 
   const onSubmit = async (data: LoginInput) => {
     try {

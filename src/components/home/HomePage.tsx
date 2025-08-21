@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import {
   ChevronRight,
-  User,
   Menu,
   X,
   Phone,
@@ -17,9 +16,10 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { Logo } from "@/components/ui";
-import { useTheme, useAuth } from "@/hooks";
+import { useTheme } from "@/hooks";
 import SearchBar from "@/components/common/SearchBar";
 import CartWishlistButtons from "@/components/common/CartWishlistButtons";
+import AccountButton from "@/components/common/AccountButton";
 import { Dropdown, type MenuProps } from "antd";
 import { useRouter } from "next/navigation";
 
@@ -77,7 +77,6 @@ export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { isDark, toggleTheme } = useTheme();
-  const { isAuthenticated, user } = useAuth();
   const router = useRouter();
 
   // Create brand menu items for dropdown
@@ -180,23 +179,7 @@ export default function HomePage() {
               <CartWishlistButtons />
 
               {/* Login/Account Button */}
-              {isAuthenticated ? (
-                <Link
-                  href="/account"
-                  className="hidden md:flex items-center space-x-2 bg-brown dark:bg-brown-light text-white px-4 py-2 rounded-full hover:bg-brown-light dark:hover:bg-brown transition-colors"
-                >
-                  <User className="w-5 h-5" />
-                  <span>{user?.firstName || "Аккаунт"}</span>
-                </Link>
-              ) : (
-                <Link
-                  href="/auth/login"
-                  className="hidden md:flex items-center space-x-2 bg-brown dark:bg-brown-light text-white px-4 py-2 rounded-full hover:bg-brown-light dark:hover:bg-brown transition-colors"
-                >
-                  <User className="w-5 h-5" />
-                  <span>Войти</span>
-                </Link>
-              )}
+              <AccountButton />
 
               {/* Mobile Menu Toggle */}
               <button
@@ -265,25 +248,7 @@ export default function HomePage() {
             </nav>
 
             {/* Mobile Login/Account Button */}
-            {isAuthenticated ? (
-              <Link
-                href="/account"
-                className="flex items-center justify-center space-x-2 bg-brown dark:bg-brown-light text-white px-4 py-3 rounded-full hover:bg-brown-light dark:hover:bg-brown transition-colors w-full"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <User className="w-5 h-5" />
-                <span>{user?.firstName || "Аккаунт"}</span>
-              </Link>
-            ) : (
-              <Link
-                href="/auth/login"
-                className="flex items-center justify-center space-x-2 bg-brown dark:bg-brown-light text-white px-4 py-3 rounded-full hover:bg-brown-light dark:hover:bg-brown transition-colors w-full"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <User className="w-5 h-5" />
-                <span>Войти</span>
-              </Link>
-            )}
+            <AccountButton isMobile={true} onMobileMenuClose={() => setIsMenuOpen(false)} />
           </div>
         </div>
       </header>
