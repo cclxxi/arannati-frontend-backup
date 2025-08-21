@@ -11,8 +11,10 @@ import {
   MailOutlined,
   PhoneOutlined,
 } from "@ant-design/icons";
+import Link from "next/link";
 import { useRegister } from "@/hooks";
 import { registerSchema, type RegisterInput } from "@/lib/utils/validation";
+import { APP_ROUTES } from "@/lib/constants";
 import toast from "react-hot-toast";
 
 export function RegisterForm() {
@@ -213,6 +215,32 @@ export function RegisterForm() {
               : "Зарегистрироваться"}
           </Button>
         </Form.Item>
+
+        {/* Navigation buttons */}
+        <div className="mt-4 space-y-3">
+          <div className="text-center">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Уже есть аккаунт?{" "}
+            </span>
+            <Link
+              href={APP_ROUTES.auth.login}
+              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+            >
+              Войти
+            </Link>
+          </div>
+          <div className="text-center">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Вы косметолог?{" "}
+            </span>
+            <Link
+              href={APP_ROUTES.auth.registerCosmetologist}
+              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+            >
+              Зарегистрироваться как косметолог
+            </Link>
+          </div>
+        </div>
       </Form>
     </div>
   );
