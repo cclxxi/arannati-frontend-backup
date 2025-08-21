@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "antd";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/hooks/queries/useAuth";
+import { useWishlistCount } from "@/hooks";
 import AuthRequiredModal from "./AuthRequiredModal";
 
 interface CartWishlistButtonsProps {
@@ -34,15 +35,7 @@ export default function CartWishlistButtons({
   });
 
   // Получаем количество товаров в вишлисте (только для авторизованных)
-  const { data: wishlistCount = 0 } = useQuery({
-    queryKey: ["wishlist-count"],
-    queryFn: async () => {
-      const response = await api.getWishlistCount();
-      return response.data.count || 0;
-    },
-    enabled: isAuthenticated,
-    refetchInterval: isAuthenticated ? 30000 : false,
-  });
+  const { count: wishlistCount = 0 } = useWishlistCount();
 
   const iconSizes = {
     sm: "w-5 h-5",

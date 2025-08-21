@@ -113,6 +113,9 @@ export function useResetPassword() {
   return {
     mutate: mutation.mutate,
     isPending: mutation.isPending,
+    error: mutation.error,
+    isSuccess: mutation.isSuccess,
+    isError: mutation.isError,
   };
 }
 
