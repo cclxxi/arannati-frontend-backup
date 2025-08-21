@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
+import { App } from "antd";
 import { QueryProvider } from "@/lib/react-query/provider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
@@ -139,19 +140,21 @@ export default async function RootLayout({
               <AppAuthProvider>
                 <AntdRenderProvider>
                   <AntdRegistry>
-                    {children}
-                    <Toaster
-                      position="top-right"
-                      toastOptions={{
-                        duration: 4000,
-                        style: {
-                          background: "var(--color-surface)",
-                          color: "var(--color-text-primary)",
-                        },
-                      }}
-                    />
-                    {/* Chat widget - don't show on admin pages as they have their own chat interface */}
-                    {!isAdminPage && <ChatWidget position="bottom-right" />}
+                    <App>
+                      {children}
+                      <Toaster
+                        position="top-right"
+                        toastOptions={{
+                          duration: 4000,
+                          style: {
+                            background: "var(--color-surface)",
+                            color: "var(--color-text-primary)",
+                          },
+                        }}
+                      />
+                      {/* Chat widget - don't show on admin pages as they have their own chat interface */}
+                      {!isAdminPage && <ChatWidget position="bottom-right" />}
+                    </App>
                   </AntdRegistry>
                 </AntdRenderProvider>
               </AppAuthProvider>

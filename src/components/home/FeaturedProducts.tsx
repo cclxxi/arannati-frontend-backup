@@ -7,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, auth } from "@/lib/api/client";
-import { message } from "antd";
+import { App } from "antd";
 import AuthRequiredModal from "@/components/common/AuthRequiredModal";
 import type { ProductDTO } from "@/types/api";
 
@@ -28,6 +28,7 @@ export default function FeaturedProducts() {
   });
   const queryClient = useQueryClient();
   const isAuthenticated = auth.isAuthenticated();
+  const { message } = App.useApp();
 
   // Загружаем популярные товары
   const { data: products = [], isLoading } = useQuery({
