@@ -8,7 +8,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { api } from "@/lib/api/client";
 import { debounce } from "lodash";
-import type { ProductDTO, PaginatedResponse } from "@/types/api";
+import type { ProductDTO } from "@/types/api";
+
+// Define possible response types
+interface ProductsResponse {
+  products?: ProductDTO[];
+  content?: ProductDTO[];
+  data?: {
+    products?: ProductDTO[];
+  };
+}
 
 interface SearchBarProps {
   placeholder?: string;
@@ -39,22 +48,34 @@ export default function SearchBar({
       setIsLoading(true);
       try {
         const response = await api.searchProducts(searchQuery, 5);
-        // Проверяем, что ответ содержит массив продуктов
-        if (response.data && Array.isArray(response.data)) {
-          setResults(response.data);
-        } else if (
-          response.data &&
-          typeof response.data === "object" &&
-          "content" in response.data &&
-          Array.isArray(
-            (response.data as PaginatedResponse<ProductDTO>).content,
-          )
-        ) {
-          // Spring Boot Page response
-          setResults((response.data as PaginatedResponse<ProductDTO>).content);
-        } else {
-          setResults([]);
+        // Проверяем разные форматы ответа от бэкенда
+        let products: ProductDTO[] = [];
+
+        if (response.data) {
+          const responseData = response.data as unknown as ProductsResponse;
+          if (Array.isArray(response.data)) {
+            products = response.data;
+          } else if (
+            responseData.data?.products &&
+            Array.isArray(responseData.data.products)
+          ) {
+            // Формат из логов: {data: {products: [...]}}
+            products = responseData.data.products;
+          } else if (
+            responseData.products &&
+            Array.isArray(responseData.products)
+          ) {
+            products = responseData.products;
+          } else if (
+            responseData.content &&
+            Array.isArray(responseData.content)
+          ) {
+            // Spring Boot Page response
+            products = responseData.content;
+          }
         }
+
+        setResults(products);
       } catch (error) {
         console.error("Search error:", error);
         setResults([]);
@@ -159,15 +180,12 @@ export default function SearchBar({
                     className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-forest/50 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"
                   >
                     <div className="w-12 h-12 relative mr-3 flex-shrink-0">
-                      {product.images && product.images.length > 0 ? (
+                      {product.images &&
+                      product.images.length > 0 &&
+                      product.images[0]?.imagePath ? (
                         <Image
                           src={
-                            product.images &&
-                            product.images.length > 0 &&
-                            product.images[0]
-                              ? product.images[0].imagePath ||
-                                "/placeholder.jpg"
-                              : "/placeholder.jpg"
+                            product.images[0].imagePath || "/placeholder.jpg"
                           }
                           alt={product.name}
                           fill

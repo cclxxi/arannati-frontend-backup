@@ -28,39 +28,19 @@ interface Category {
   slug?: string;
 }
 
-interface ProductsResponseWithCategories {
-  categories?: Category[];
-  [key: string]: unknown;
-}
-
 export default function CatalogSection() {
   // Загружаем категории из API
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
       try {
-        // Пытаемся получить категории через эндпоинт категорий
-        const response = await api.getProducts({
-          size: "0", // Получаем только метаданные
-        });
-
-        // Если есть информация о категориях в метаданных
-        if (
-          response.data &&
-          typeof response.data === "object" &&
-          "categories" in response.data
-        ) {
-          const typedResponse = response.data as ProductsResponseWithCategories;
-          if (
-            typedResponse.categories &&
-            Array.isArray(typedResponse.categories)
-          ) {
-            return typedResponse.categories;
-          }
+        // Пытаемся получить категории через отдельный эндпоинт
+        const response = await api.getCategories();
+        if (response.data && Array.isArray(response.data)) {
+          return response.data;
         }
 
-        // Иначе используем статические категории
-        // В будущем здесь должен быть отдельный эндпоинт для категорий
+        // Если нет отдельного эндпоинта, возвращаем статические категории
         return [
           { id: 1, name: "Очищение", productCount: 156 },
           { id: 2, name: "Увлажнение", productCount: 203 },

@@ -17,13 +17,6 @@ export interface ApiResponse<T> {
 // Define common request data types
 export type ApiRequestData = Record<string, unknown> | FormData | object | null;
 
-// Token refresh subscribers
-const tokenRefreshSubscribers: Array<(token: string) => void> = [];
-
-export function subscribeTokenRefresh(callback: (token: string) => void): void {
-  tokenRefreshSubscribers.push(callback);
-}
-
 // Auth helper object
 export const auth = {
   setTokens: ({
@@ -37,9 +30,6 @@ export const auth = {
     if (refreshToken) {
       setCookie("refresh-token", refreshToken);
     }
-
-    // Notify subscribers about token refresh
-    tokenRefreshSubscribers.forEach((callback) => callback(accessToken));
   },
   getTokens: () => {
     const accessToken = getCookie("auth-token");
@@ -58,16 +48,6 @@ export const auth = {
   },
   isAuthenticated: () => {
     return !!getCookie("auth-token");
-  },
-  ensureValidToken: async (): Promise<string | null> => {
-    const tokens = auth.getTokens();
-    if (!tokens) return null;
-    return tokens.accessToken;
-  },
-  getCurrentUserId: (): string | null => {
-    // This is a placeholder. In a real implementation, you would decode the JWT token
-    // to get the user ID or retrieve it from local storage/state
-    return null;
   },
 };
 
@@ -231,6 +211,13 @@ export const api = {
     return ApiClient.get(
       `/catalog/products?search=${encodeURIComponent(query)}&size=${limit}`,
     );
+  },
+
+  // Categories - добавляем новый метод
+  getCategories: () => {
+    return ApiClient.get("/catalog/categories").catch(() => ({
+      data: [], // Возвращаем пустой массив в случае ошибки
+    }));
   },
 
   // Cart - только для авторизованных пользователей

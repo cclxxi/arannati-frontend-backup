@@ -9,7 +9,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, auth } from "@/lib/api/client";
 import { message } from "antd";
 import AuthRequiredModal from "@/components/common/AuthRequiredModal";
-import type { ProductDTO, PaginatedResponse } from "@/types/api";
+import type { ProductDTO } from "@/types/api";
+
+// Define possible response types
+interface ProductsResponse {
+  products?: ProductDTO[];
+  content?: ProductDTO[];
+  data?: {
+    products?: ProductDTO[];
+  };
+}
 
 export default function FeaturedProducts() {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -26,19 +35,31 @@ export default function FeaturedProducts() {
     queryFn: async () => {
       const response = await api.getProducts({
         size: "8",
-        sort: "rating,desc", // Сортируем по рейтингу для получения популярных товаров
+        sort: "sortOrder,asc", // Используем sortOrder вместо rating
       });
 
       // Обрабатываем разные форматы ответа
       if (Array.isArray(response.data)) {
         return response.data;
-      } else if (
-        response.data &&
-        typeof response.data === "object" &&
-        "content" in response.data &&
-        Array.isArray((response.data as PaginatedResponse<ProductDTO>).content)
-      ) {
-        return (response.data as PaginatedResponse<ProductDTO>).content;
+      } else {
+        const responseData = response.data as unknown as ProductsResponse;
+        if (
+          responseData.data?.products &&
+          Array.isArray(responseData.data.products)
+        ) {
+          // Формат из логов: {data: {products: [...]}}
+          return responseData.data.products;
+        } else if (
+          responseData.products &&
+          Array.isArray(responseData.products)
+        ) {
+          return responseData.products;
+        } else if (
+          responseData.content &&
+          Array.isArray(responseData.content)
+        ) {
+          return responseData.content;
+        }
       }
       return [];
     },
@@ -155,15 +176,11 @@ export default function FeaturedProducts() {
                   className="group bg-white dark:bg-forest/30 backdrop-blur-sm rounded-2xl p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                 >
                   <div className="relative aspect-square mb-4 overflow-hidden rounded-xl">
-                    {product.images && product.images.length > 0 ? (
+                    {product.images &&
+                    product.images.length > 0 &&
+                    product.images[0]?.imagePath ? (
                       <Image
-                        src={
-                          product.images &&
-                          product.images.length > 0 &&
-                          product.images[0]
-                            ? product.images[0].imagePath || "/placeholder.jpg"
-                            : "/placeholder.jpg"
-                        }
+                        src={product.images[0].imagePath || "/placeholder.jpg"}
                         alt={product.name}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
