@@ -119,7 +119,7 @@ export default function WishlistDropdown() {
 
       {safeItems.length > 0 && (
         <div className="p-3 border-t border-gray-200 dark:border-gray-700">
-          <Link href="/dashboard/wishlist">
+          <Link href="/wishlist">
             <Button
               type="primary"
               block

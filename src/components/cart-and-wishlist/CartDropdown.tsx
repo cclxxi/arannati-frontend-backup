@@ -134,7 +134,7 @@ export default function CartDropdown() {
               {formatPrice(totalPrice)}
             </span>
           </div>
-          <Link href="/dashboard/cart">
+          <Link href="/cart">
             <Button type="primary" block className="bg-mint hover:bg-mint-dark">
               Перейти в корзину
             </Button>
