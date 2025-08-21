@@ -120,13 +120,16 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <Logo className="h-14 w-auto" />
+            <Logo 
+              className={`h-12 sm:h-14 md:h-16 lg:h-18 xl:h-20 w-auto flex-shrink-0 ${!isDark ? 'pt-4 ml-0 lg:mr-4' : 'lg:pr-3'}`}
+              size="lg"
+            />
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center space-x-8">
+            <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6 2xl:space-x-8">
               <Link
                 href="/catalog"
-                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium"
+                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium whitespace-nowrap"
               >
                 Каталог
               </Link>
@@ -135,20 +138,20 @@ export default function HomePage() {
                 placement="bottom"
                 trigger={["hover"]}
               >
-                <div className="flex items-center cursor-pointer text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium">
+                <div className="flex items-center cursor-pointer text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium whitespace-nowrap">
                   Бренды
                   <ChevronDown className="ml-1 w-4 h-4" />
                 </div>
               </Dropdown>
               <Link
                 href="/cosmetologist"
-                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium"
+                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium whitespace-nowrap"
               >
                 Косметологам
               </Link>
               <Link
                 href="/about"
-                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium"
+                className="text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium whitespace-nowrap"
               >
                 О нас
               </Link>
