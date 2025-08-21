@@ -34,7 +34,6 @@ export function LoginForm() {
     },
   });
 
-
   const onSubmit = async (data: LoginInput) => {
     try {
       login(data);

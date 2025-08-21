@@ -49,18 +49,18 @@ export const auth = {
   isAuthenticated: () => {
     const token = getCookie("auth-token");
     if (!token) return false;
-    
+
     try {
       // Validate JWT token structure (should have 3 parts separated by dots)
-      const tokenParts = token.split('.');
+      const tokenParts = token.split(".");
       if (tokenParts.length !== 3 || !tokenParts[1]) {
         throw new Error("Invalid JWT token structure");
       }
-      
+
       // Decode JWT token to check expiration
       const payload = JSON.parse(atob(tokenParts[1]));
       const currentTime = Math.floor(Date.now() / 1000);
-      
+
       // Check if token is expired
       if (payload.exp && payload.exp < currentTime) {
         // Token is expired, remove it
@@ -68,7 +68,7 @@ export const auth = {
         deleteCookie("refresh-token");
         return false;
       }
-      
+
       return true;
     } catch {
       // Invalid token format, remove it

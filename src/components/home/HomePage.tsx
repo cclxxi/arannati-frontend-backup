@@ -248,7 +248,10 @@ export default function HomePage() {
             </nav>
 
             {/* Mobile Login/Account Button */}
-            <AccountButton isMobile={true} onMobileMenuClose={() => setIsMenuOpen(false)} />
+            <AccountButton
+              isMobile={true}
+              onMobileMenuClose={() => setIsMenuOpen(false)}
+            />
           </div>
         </div>
       </header>

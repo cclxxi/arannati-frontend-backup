@@ -50,7 +50,7 @@ export function ResetPasswordForm() {
         };
       };
       let errorMessage = "Произошла ошибка при сбросе пароля";
-      
+
       // Handle specific error cases
       if (error?.response?.status === 400) {
         errorMessage = "Неверный или истекший токен сброса пароля";
@@ -61,7 +61,7 @@ export function ResetPasswordForm() {
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
+
       toast.error(errorMessage);
     }
   }, [resetPasswordMutation.isError, resetPasswordMutation.error]);

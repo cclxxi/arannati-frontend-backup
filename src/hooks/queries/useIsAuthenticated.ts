@@ -5,7 +5,12 @@ import { useAuth } from "@/hooks";
 import { auth } from "@/lib/api/client";
 
 export function useIsAuthenticated() {
-  const { user, isAuthenticated, setUser, isLoading: storeLoading } = useAuthStore();
+  const {
+    user,
+    isAuthenticated,
+    setUser,
+    isLoading: storeLoading,
+  } = useAuthStore();
   const { user: currentUser, isLoading: isLoadingUser } = useAuth();
   const [localLoading, setLocalLoading] = useState(false);
 
