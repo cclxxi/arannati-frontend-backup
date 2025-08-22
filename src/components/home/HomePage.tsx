@@ -9,13 +9,13 @@ import {
   MapPin,
   Mail,
   Sparkles,
-  Sun,
-  Moon,
+  // Sun,
+  // Moon,
   ChevronDown,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { Logo } from "@/components/ui";
+import { Logo, ThemeToggle } from "@/components/ui";
 import { useTheme } from "@/hooks";
 import SearchBar from "@/components/common/SearchBar";
 import CartWishlistButtons from "@/components/common/CartWishlistButtons";
@@ -76,7 +76,7 @@ const BRANDS_DATA = [
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, /*toggleTheme*/ } = useTheme();
   const router = useRouter();
 
   // Create brand menu items for dropdown
@@ -162,8 +162,8 @@ export default function HomePage() {
 
             {/* Right Side Icons */}
             <div className="flex items-center space-x-2 sm:space-x-4 ml-4">
-              {/* Theme Toggle */}
-              <button
+              {/* Theme Toggle - manual tap switch implementation (commented out) */}
+                {/*<button
                 onClick={toggleTheme}
                 className="p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors"
                 aria-label="Сменить тему"
@@ -173,7 +173,9 @@ export default function HomePage() {
                 ) : (
                   <Moon className="w-5 h-5 sm:w-6 sm:h-6 text-forest" />
                 )}
-              </button>
+              </button>*/}
+                {/* Theme Toggle - component implementation */}
+                <ThemeToggle />
 
               {/* Cart and Wishlist Buttons */}
               <CartWishlistButtons />
