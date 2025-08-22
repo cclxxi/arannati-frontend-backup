@@ -9,8 +9,6 @@ import {
   MapPin,
   Mail,
   Sparkles,
-  // Sun,
-  // Moon,
   ChevronDown,
 } from "lucide-react";
 import Image from "next/image";
@@ -23,60 +21,19 @@ import AccountButton from "@/components/common/AccountButton";
 import { Dropdown, type MenuProps } from "antd";
 import { useRouter } from "next/navigation";
 
-// Импортируем компоненты секций
+// Компоненты секций
 import BrandsSection from "./BrandsSection";
 import InstagramSection from "./InstagramSection";
 import FeaturedProducts from "./FeaturedProducts";
 import CatalogSection from "./CatalogSection";
 
 // Данные о брендах
-const BRANDS_DATA = [
-  {
-    id: 1,
-    name: "ATACHE",
-    brandId: 1,
-  },
-  {
-    id: 2,
-    name: "Image Skincare",
-    brandId: 2,
-  },
-  {
-    id: 3,
-    name: "IPH",
-    brandId: 3,
-  },
-  {
-    id: 4,
-    name: "LEVISSIME",
-    brandId: 4,
-  },
-  {
-    id: 5,
-    name: "VAGHEGGI",
-    brandId: 5,
-  },
-  {
-    id: 6,
-    name: "VEC",
-    brandId: 6,
-  },
-  {
-    id: 7,
-    name: "Yon-Ka",
-    brandId: 7,
-  },
-  {
-    id: 8,
-    name: "Liposomal Vitamins",
-    brandId: 8,
-  },
-];
+import {BRANDS_DATA} from "@/constants";
 
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { isDark, /*toggleTheme*/ } = useTheme();
+  const { isDark } = useTheme();
   const router = useRouter();
 
   // Create brand menu items for dropdown
@@ -162,18 +119,7 @@ export default function HomePage() {
 
             {/* Right Side Icons */}
             <div className="flex items-center space-x-2 sm:space-x-4 ml-4">
-              {/* Theme Toggle - manual tap switch implementation (commented out) */}
-                {/*<button
-                onClick={toggleTheme}
-                className="p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors"
-                aria-label="Сменить тему"
-              >
-                {isDark ? (
-                  <Sun className="w-5 h-5 sm:w-6 sm:h-6 text-beige-light" />
-                ) : (
-                  <Moon className="w-5 h-5 sm:w-6 sm:h-6 text-forest" />
-                )}
-              </button>*/}
+
                 {/* Theme Toggle - component implementation */}
                 <ThemeToggle />
 
