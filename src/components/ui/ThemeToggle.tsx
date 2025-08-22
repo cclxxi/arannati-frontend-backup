@@ -54,7 +54,9 @@ export function ThemeToggle({
       placement="bottomRight"
       trigger={["hover"]}
     >
-      <button className={`p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors ${className || ''}`}>
+      <button
+        className={`p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors ${className || ""}`}
+      >
         {currentIcon}
         {showLabel && (
           <span className="ml-2">

@@ -28,7 +28,7 @@ import FeaturedProducts from "./FeaturedProducts";
 import CatalogSection from "./CatalogSection";
 
 // Данные о брендах
-import {BRANDS_DATA} from "@/constants";
+import { BRANDS_DATA } from "@/constants";
 
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -119,9 +119,8 @@ export default function HomePage() {
 
             {/* Right Side Icons */}
             <div className="flex items-center space-x-2 sm:space-x-4 ml-4">
-
-                {/* Theme Toggle - component implementation */}
-                <ThemeToggle />
+              {/* Theme Toggle - component implementation */}
+              <ThemeToggle />
 
               {/* Cart and Wishlist Buttons */}
               <CartWishlistButtons />
