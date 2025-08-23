@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Logo, ThemeToggle } from "@/components/ui";
 import { useTheme } from "@/hooks";
 import SearchBar from "@/components/common/SearchBar";
-import CartWishlistButtons from "@/components/common/CartWishlistButtons";
+import { CartWishlistIcons } from "@/components/common/CartWishlistIcons";
 import AccountButton from "@/components/common/AccountButton";
 import { Dropdown, type MenuProps } from "antd";
 import { useRouter } from "next/navigation";
@@ -114,8 +114,8 @@ export default function Header({
             {/* Theme Toggle - component implementation */}
             <ThemeToggle />
 
-            {/* Cart and Wishlist Buttons */}
-            <CartWishlistButtons />
+            {/* Cart and Wishlist Icons */}
+            <CartWishlistIcons />
 
             {/* Login/Account Button */}
             <AccountButton />

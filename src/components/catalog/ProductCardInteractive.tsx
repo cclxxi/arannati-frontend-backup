@@ -13,16 +13,51 @@ import type { ProductDTO } from "@/types/api";
 import { App } from "antd";
 import AuthRequiredModal from "@/components/common/AuthRequiredModal";
 
+// Компонент для безопасного отображения изображения
+const ProductImage = ({
+  src,
+  alt,
+  fallback = "/placeholder-product.png",
+}: {
+  src?: string | null;
+  alt: string;
+  fallback?: string;
+}) => {
+  const [imgSrc, setImgSrc] = useState(src || fallback);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setImgSrc(src || fallback);
+  }, [src, fallback]);
+
+  return (
+    <>
+      {isLoading && (
+        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+      )}
+      <Image
+        src={imgSrc}
+        alt={alt}
+        fill
+        className={`object-cover ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
+        onLoad={() => setIsLoading(false)}
+        onError={() => {
+          setImgSrc(fallback);
+          setIsLoading(false);
+        }}
+      />
+    </>
+  );
+};
+
 interface ProductCardInteractiveProps {
   product: ProductDTO;
   viewMode?: "grid" | "list";
-  index?: number;
 }
 
 export default function ProductCardInteractive({
   product,
   viewMode = "grid",
-  index = 0,
 }: ProductCardInteractiveProps) {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
@@ -32,31 +67,34 @@ export default function ProductCardInteractive({
   const { isAuthenticated } = useAuth();
   const { message } = App.useApp();
 
-  // Cart store
-  const {
-    isInCart,
-    getCartItem,
-    addItem: addToCart,
-    updateQuantity,
-    removeItem: removeFromCart,
-  } = useCartStore();
+  // Добавьте проверку на существование stores перед использованием
+  const cartStore = useCartStore();
+  const wishlistStore = useWishlistStore();
 
-  // Wishlist store
-  const {
-    isInWishlist,
-    toggleItem: toggleWishlist,
-    fetchWishlist,
-  } = useWishlistStore();
+  // Безопасное получение данных
+  const isInCart = cartStore?.isInCart
+    ? cartStore.isInCart(product.id!)
+    : false;
+  const isInWishlist = wishlistStore?.isInWishlist
+    ? wishlistStore.isInWishlist(product.id!)
+    : false;
+  const cartItem = cartStore?.getCartItem
+    ? cartStore.getCartItem(product.id!)
+    : undefined;
+  const quantity = cartItem?.quantity || 0;
+
+  // Безопасное получение методов
+  const addToCart = cartStore?.addItem;
+  const updateQuantity = cartStore?.updateQuantity;
+  const removeFromCart = cartStore?.removeItem;
+  const toggleWishlist = wishlistStore?.toggleItem;
+  const fetchWishlist = wishlistStore?.fetchWishlist;
 
   // Обновляем локальное состояние при изменении stores
   useEffect(() => {
-    setLocalInWishlist(isInWishlist(product.id!));
-    setLocalInCart(isInCart(product.id!));
-  }, [isInWishlist, isInCart, product.id]);
-
-  // Get cart item for this product
-  const cartItem = getCartItem(product.id!);
-  const quantity = cartItem?.quantity || 0;
+    setLocalInWishlist(isInWishlist);
+    setLocalInCart(isInCart);
+  }, [isInWishlist, isInCart]);
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
@@ -64,6 +102,8 @@ export default function ProductCardInteractive({
       setShowAuthModal(true);
       return;
     }
+
+    if (!addToCart) return;
 
     try {
       await addToCart(product.id!, 1);
@@ -75,7 +115,7 @@ export default function ProductCardInteractive({
   };
 
   const handleUpdateQuantity = async (delta: number) => {
-    if (!cartItem?.id) return;
+    if (!cartItem?.id || !updateQuantity || !removeFromCart) return;
 
     const newQuantity = quantity + delta;
     if (newQuantity > 0) {
@@ -92,6 +132,8 @@ export default function ProductCardInteractive({
       setShowAuthModal(true);
       return;
     }
+
+    if (!toggleWishlist) return;
 
     try {
       const isNowInWishlist = await toggleWishlist(product.id!);
@@ -117,9 +159,11 @@ export default function ProductCardInteractive({
         error.response.data.message.includes("already")
       ) {
         // Обновляем состояние
-        await fetchWishlist();
-        const isNowInWishlist = isInWishlist(product.id!);
-        setLocalInWishlist(isNowInWishlist);
+        if (fetchWishlist) {
+          await fetchWishlist();
+          const isNowInWishlist = isInWishlist;
+          setLocalInWishlist(isNowInWishlist);
+        }
         message.info("Товар уже в избранном");
       } else {
         message.error("Не удалось изменить избранное");
@@ -174,20 +218,12 @@ export default function ProductCardInteractive({
             </button>
 
             <Link href={`/product/${product.id}`}>
-              {product.images?.[0]?.imagePath ? (
-                <Image
-                  src={product.images[0].imagePath}
+              <div className="relative aspect-square">
+                <ProductImage
+                  src={product.images?.[0]?.imagePath}
                   alt={product.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  priority={index < 6}
-                  className="object-cover group-hover:scale-110 transition-transform duration-300"
                 />
-              ) : (
-                <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                  <ShoppingCart className="w-12 h-12 text-gray-400" />
-                </div>
-              )}
+              </div>
             </Link>
           </div>
 

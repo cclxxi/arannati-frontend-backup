@@ -16,7 +16,6 @@ import {
 import { useInView } from "react-intersection-observer";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
-import { catalogApi } from "@/lib/api/services/catalog";
 import ProductCardInteractive from "@/components/catalog/ProductCardInteractive";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ProductDTO } from "@/types/api";
@@ -34,19 +33,22 @@ interface Filters {
   minPrice?: number;
   maxPrice?: number;
   onSale?: boolean;
-  sort: string[];
+  sort: string;
 }
 
 export default function CatalogPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filters, setFilters] = useState<Filters>({
     search: "",
-    sort: ["sortOrder,asc"],
+    sort: "sortOrder,asc",
   });
   const [showFilters, setShowFilters] = useState(false);
   const [searchInput, setSearchInput] = useState("");
 
-  const { ref, inView } = useInView();
+  const { ref, inView } = useInView({
+    threshold: 0.1,
+    rootMargin: "100px",
+  });
 
   // Инициализация stores
   const { isAuthenticated } = useAuth();
@@ -67,8 +69,12 @@ export default function CatalogPage() {
   >({
     queryKey: ["categories"],
     queryFn: async () => {
-      const response = await api.getCategories();
-      return (response.data as Array<{ id: number; name: string }>) || [];
+      try {
+        const response = await api.getCategories();
+        return (response.data as Array<{ id: number; name: string }>) || [];
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -96,23 +102,32 @@ export default function CatalogPage() {
   } = useInfiniteQuery({
     queryKey: ["catalog", filters],
     queryFn: async ({ pageParam = 0 }) => {
-      const catalogFilters = {
-        page: pageParam,
-        size: 20,
-        search: filters.search,
-        categoryId: filters.categoryId,
-        brandId: filters.brandId,
-        minPrice: filters.minPrice,
-        maxPrice: filters.maxPrice,
-        onSale: filters.onSale,
+      // Правильное формирование параметров для API
+      const params: Record<string, string> = {
+        page: pageParam.toString(),
+        size: "20",
         sort: filters.sort,
       };
 
-      return await catalogApi.getProducts(catalogFilters);
+      // Добавляем только непустые фильтры
+      if (filters["search"]?.trim()) params["search"] = filters["search"];
+      if (filters["categoryId"])
+        params["categoryId"] = filters["categoryId"].toString();
+      if (filters["brandId"]) params["brandId"] = filters["brandId"].toString();
+      if (filters["minPrice"])
+        params["minPrice"] = filters["minPrice"].toString();
+      if (filters["maxPrice"])
+        params["maxPrice"] = filters["maxPrice"].toString();
+      if (filters["onSale"] !== undefined)
+        params["onSale"] = filters["onSale"].toString();
+
+      const response = await api.getProducts(params);
+      return response.data;
     },
     getNextPageParam: (lastPage, pages) => {
-      if (lastPage?.last) return undefined;
-      return pages.length;
+      // Проверяем, есть ли еще страницы
+      if ((lastPage as { last?: boolean })?.last === true) return undefined;
+      return pages.length; // Возвращаем номер следующей страницы
     },
     initialPageParam: 0,
   });
@@ -135,10 +150,10 @@ export default function CatalogPage() {
 
   // Автоматическая подгрузка при скролле
   useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
+    if (inView && hasNextPage && !isFetchingNextPage && !isLoading) {
       fetchNextPage();
     }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [inView, hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
 
   const handleFilterChange = (
     key: keyof Filters,
@@ -150,7 +165,7 @@ export default function CatalogPage() {
   const clearFilters = () => {
     setFilters({
       search: "",
-      sort: ["sortOrder,asc"],
+      sort: "sortOrder,asc",
     });
     setSearchInput("");
   };
@@ -159,7 +174,10 @@ export default function CatalogPage() {
     (key) => key !== "sort" && filters[key as keyof Filters],
   ).length;
 
-  const products = data?.pages.flatMap((page) => page?.content || []) || [];
+  const products =
+    data?.pages.flatMap(
+      (page) => (page as { content?: ProductDTO[] })?.content || [],
+    ) || [];
 
   const sortOptions = [
     { value: "sortOrder,asc", label: "По популярности" },
@@ -295,8 +313,8 @@ export default function CatalogPage() {
 
               {/* Сортировка */}
               <Select
-                value={filters.sort[0]}
-                onChange={(value) => handleFilterChange("sort", [value])}
+                value={filters.sort}
+                onChange={(value) => handleFilterChange("sort", value)}
                 className="w-48"
                 size="large"
               >
@@ -376,7 +394,7 @@ export default function CatalogPage() {
             ) : (
               <>
                 <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-                  Найдено товаров: {data?.pages[0]?.totalElements || 0}
+                  Найдено товаров: {products.length}
                   {isFetchingNextPage && " (загрузка...)"}
                 </div>
 
@@ -403,7 +421,6 @@ export default function CatalogPage() {
                         <ProductCardInteractive
                           product={product}
                           viewMode={viewMode}
-                          index={index}
                         />
                       </motion.div>
                     ))}
@@ -411,14 +428,24 @@ export default function CatalogPage() {
                 </AnimatePresence>
 
                 {/* Индикатор загрузки следующей страницы */}
-                <div ref={ref} className="flex justify-center py-8">
-                  {isFetchingNextPage && <Spin size="large" />}
-                  {!hasNextPage && products.length > 0 && (
-                    <p className="text-gray-500 dark:text-gray-400">
-                      Все товары загружены
-                    </p>
-                  )}
-                </div>
+                {products.length > 0 && (
+                  <div
+                    ref={ref}
+                    className="flex justify-center py-8 min-h-[100px]"
+                  >
+                    {isFetchingNextPage ? (
+                      <Spin size="large" />
+                    ) : hasNextPage ? (
+                      <div className="text-gray-400">
+                        Прокрутите для загрузки
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 dark:text-gray-400">
+                        Все товары загружены
+                      </p>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
