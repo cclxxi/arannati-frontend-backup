@@ -22,6 +22,7 @@ import type { ProductDTO } from "@/types/api";
 import { useAuth } from "@/hooks/queries/useAuth";
 import { useCartStore } from "@/stores/useCartStore";
 import { useWishlistStore } from "@/stores/useWishlistStore";
+import Header from "@/components/common/Header";
 
 const { Option } = Select;
 
@@ -264,10 +265,12 @@ export default function CatalogPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-beige-light via-white to-mint/10 dark:from-forest dark:via-gray-900 dark:to-forest/50 transition-colors duration-500">
+      {/* Header */}
+      <Header />
       {/* Хедер каталога */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm sticky top-16 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="bg-white/95 dark:bg-forest/95 backdrop-blur-lg shadow-sm sticky top-20 z-10 mt-20">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Поиск */}
             <div className="flex-1 max-w-xl">
@@ -312,13 +315,13 @@ export default function CatalogPage() {
               </Select>
 
               {/* Переключатель вида */}
-              <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+              <div className="flex bg-beige/20 dark:bg-forest/30 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode("grid")}
                   className={`p-2 rounded transition-colors ${
                     viewMode === "grid"
-                      ? "bg-white dark:bg-gray-600 text-mint"
-                      : "text-gray-500 dark:text-gray-400"
+                      ? "bg-brown text-white shadow-md"
+                      : "text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light"
                   }`}
                   aria-label="Grid view"
                 >
@@ -328,8 +331,8 @@ export default function CatalogPage() {
                   onClick={() => setViewMode("list")}
                   className={`p-2 rounded transition-colors ${
                     viewMode === "list"
-                      ? "bg-white dark:bg-gray-600 text-mint"
-                      : "text-gray-500 dark:text-gray-400"
+                      ? "bg-brown text-white shadow-md"
+                      : "text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light"
                   }`}
                   aria-label="List view"
                 >
@@ -341,19 +344,19 @@ export default function CatalogPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6">
         <div className="flex gap-6">
           {/* Боковые фильтры (десктоп) */}
           <aside className="hidden lg:block w-64 flex-shrink-0">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 sticky top-32">
+            <div className="bg-white/80 dark:bg-forest/80 backdrop-blur-md rounded-xl p-6 sticky top-32 shadow-lg border border-beige/20 dark:border-gray-700/50">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white">
+                <h3 className="font-semibold text-forest dark:text-beige-light">
                   Фильтры
                 </h3>
                 {activeFiltersCount > 0 && (
                   <button
                     onClick={clearFilters}
-                    className="text-sm text-red-500 hover:text-red-600 transition-colors"
+                    className="text-sm text-brown hover:text-brown-light transition-colors"
                   >
                     Очистить
                   </button>
