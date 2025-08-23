@@ -20,9 +20,10 @@ import { BRANDS_DATA } from "@/constants";
 
 interface HeaderProps {
   className?: string;
+  hideSearch?: boolean;
 }
 
-export default function Header({ className = "" }: HeaderProps) {
+export default function Header({ className = "", hideSearch = false }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { isDark } = useTheme();
@@ -105,7 +106,7 @@ export default function Header({ className = "" }: HeaderProps) {
           </nav>
 
           {/* Search Bar - Desktop */}
-          <SearchBar className="hidden lg:block w-80 xl:w-96 ml-4" />
+          {!hideSearch && <SearchBar className="hidden lg:block w-80 xl:w-96 ml-4" />}
 
           {/* Right Side Icons */}
           <div className="flex items-center space-x-2 sm:space-x-4 ml-4">
@@ -144,7 +145,7 @@ export default function Header({ className = "" }: HeaderProps) {
       >
         <div className="container mx-auto px-4 py-4 space-y-4">
           {/* Mobile Search */}
-          <SearchBar className="w-full" />
+          {!hideSearch && <SearchBar className="w-full" />}
 
           {/* Mobile Navigation */}
           <nav className="space-y-2">

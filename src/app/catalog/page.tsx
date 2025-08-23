@@ -267,7 +267,7 @@ export default function CatalogPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-beige-light via-white to-mint/10 dark:from-forest dark:via-gray-900 dark:to-forest/50 transition-colors duration-500">
       {/* Header */}
-      <Header />
+      <Header hideSearch={true} />
       {/* Хедер каталога */}
       <div className="bg-white/95 dark:bg-forest/95 backdrop-blur-lg shadow-sm sticky top-20 z-10 mt-20">
         <div className="container mx-auto px-4 py-4">
