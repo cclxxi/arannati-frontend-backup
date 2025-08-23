@@ -12,6 +12,8 @@ import ChatWidget from "@/components/chat/ChatWidget";
 import { headers } from "next/headers";
 import "./globals.css";
 import React from "react";
+import StoreInitializer from "@/components/providers/StoreInitializer";
+import StorageCleanupProvider from "@/components/providers/StorageCleanupProvider";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
@@ -66,13 +68,13 @@ export const metadata: Metadata = {
     icon: [
       { url: "/favicon.ico", sizes: "64x64" },
       {
-        url: "/system-images/favicon-16x16.svg",
+        url: "/images/system-images/favicon-16x16.svg",
         sizes: "16x16",
         type: "image/svg+xml",
       },
     ],
     shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.svg",
+    apple: "/images/system-images/apple-touch-icon.svg",
   },
 };
 
@@ -139,23 +141,29 @@ export default async function RootLayout({
             <AuthProvider>
               <AppAuthProvider>
                 <AntdRenderProvider>
-                  <AntdRegistry>
-                    <App>
-                      {children}
-                      <Toaster
-                        position="top-right"
-                        toastOptions={{
-                          duration: 4000,
-                          style: {
-                            background: "var(--color-surface)",
-                            color: "var(--color-text-primary)",
-                          },
-                        }}
-                      />
-                      {/* Chat widget - don't show on admin pages as they have their own chat interface */}
-                      {!isAdminPage && <ChatWidget position="bottom-right" />}
-                    </App>
-                  </AntdRegistry>
+                  <StorageCleanupProvider>
+                    <AntdRegistry>
+                      <App>
+                        <StoreInitializer>
+                          {children}
+                          <Toaster
+                            position="top-right"
+                            toastOptions={{
+                              duration: 4000,
+                              style: {
+                                background: "var(--color-surface)",
+                                color: "var(--color-text-primary)",
+                              },
+                            }}
+                          />
+                          {/* Chat widget - don't show on admin pages as they have their own chat interface */}
+                          {!isAdminPage && (
+                            <ChatWidget position="bottom-right" />
+                          )}
+                        </StoreInitializer>
+                      </App>
+                    </AntdRegistry>
+                  </StorageCleanupProvider>
                 </AntdRenderProvider>
               </AppAuthProvider>
             </AuthProvider>
