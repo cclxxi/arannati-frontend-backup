@@ -238,44 +238,44 @@ export const DEFAULTS = {
 } as const;
 
 export const BRANDS_DATA = [
-    {
-        id: 1,
-        name: "ATACHE",
-        brandId: 1,
-    },
-    {
-        id: 2,
-        name: "Image Skincare",
-        brandId: 2,
-    },
-    {
-        id: 3,
-        name: "IPH",
-        brandId: 3,
-    },
-    {
-        id: 4,
-        name: "LEVISSIME",
-        brandId: 4,
-    },
-    {
-        id: 5,
-        name: "VAGHEGGI",
-        brandId: 5,
-    },
-    {
-        id: 6,
-        name: "VEC",
-        brandId: 6,
-    },
-    {
-        id: 7,
-        name: "Yon-Ka",
-        brandId: 7,
-    },
-    {
-        id: 8,
-        name: "Liposomal Vitamins",
-        brandId: 8,
-    },
+  {
+    id: 1,
+    name: "ATACHE",
+    brandId: 1,
+  },
+  {
+    id: 2,
+    name: "Image Skincare",
+    brandId: 2,
+  },
+  {
+    id: 3,
+    name: "IPH",
+    brandId: 3,
+  },
+  {
+    id: 4,
+    name: "LEVISSIME",
+    brandId: 4,
+  },
+  {
+    id: 5,
+    name: "VAGHEGGI",
+    brandId: 5,
+  },
+  {
+    id: 6,
+    name: "VEC",
+    brandId: 6,
+  },
+  {
+    id: 7,
+    name: "Yon-Ka",
+    brandId: 7,
+  },
+  {
+    id: 8,
+    name: "Liposomal Vitamins",
+    brandId: 8,
+  },
 ];
