@@ -179,25 +179,31 @@ export const wishlistApi = {
       }
 
       // Если формат ответа неизвестен, проверяем текущее состояние через отдельный запрос
-      console.warn("Unknown response format from toggleItem API:", response.data);
-      
+      console.warn(
+        "Unknown response format from toggleItem API:",
+        response.data,
+      );
+
       try {
         const checkResponse = await apiClient.get<WishlistCheckResponse>(
           API_ROUTES.wishlist.check(productId),
         );
-        
+
         if (typeof checkResponse.data?.inWishlist === "boolean") {
           return { inWishlist: checkResponse.data.inWishlist };
         }
-        
+
         // Если вернулся объект товара, значит он в вишлисте
         if (checkResponse.data && typeof checkResponse.data === "object") {
           return { inWishlist: true };
         }
-        
+
         return { inWishlist: false };
       } catch (checkError) {
-        console.error("Failed to check wishlist state after toggle:", checkError);
+        console.error(
+          "Failed to check wishlist state after toggle:",
+          checkError,
+        );
         // В крайнем случае возвращаем false, чтобы не показывать неверное состояние
         return { inWishlist: false };
       }
@@ -237,16 +243,12 @@ export const wishlistApi = {
         API_ROUTES.wishlist.check(productId),
       );
 
-
-
       if (typeof response.data?.inWishlist === "boolean") {
         return response.data.inWishlist;
       }
 
       // Если вернулся объект товара, значит он в вишлисте
       return !!(response.data?.id || response.data?.wishlistItem);
-
-
     } catch (error: unknown) {
       // Если 404, значит товара нет в вишлисте
       if (
