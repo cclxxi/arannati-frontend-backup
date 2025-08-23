@@ -9,8 +9,20 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "http",
+        hostname: "localhost",
+      },
+      {
+        protocol: "https",
+        hostname: "**", // Временно разрешаем все домены
+      },
     ],
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+  reactStrictMode: false,
   // Add transpilePackages to help with chunk loading issues
   transpilePackages: [
     "rc-cascader",

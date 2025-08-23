@@ -14,6 +14,7 @@ import "./globals.css";
 import React from "react";
 import StoreInitializer from "@/components/providers/StoreInitializer";
 import StorageCleanupProvider from "@/components/providers/StorageCleanupProvider";
+import WarningSuppressionProvider from "@/components/providers/WarningSuppressionProvider";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
@@ -145,6 +146,7 @@ export default async function RootLayout({
                     <AntdRegistry>
                       <App>
                         <StoreInitializer>
+                          <WarningSuppressionProvider />
                           {children}
                           <Toaster
                             position="top-right"
