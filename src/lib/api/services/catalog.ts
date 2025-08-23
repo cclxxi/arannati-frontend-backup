@@ -10,20 +10,32 @@ export interface CatalogFilters {
   minPrice?: number;
   maxPrice?: number;
   search?: string;
+  onSale?: boolean;
   page?: number;
   size?: number;
-  sort?: string[];
+  sort?: string | string[];
 }
 
 // API методы для каталога
 export const catalogApi = {
   // Получение списка товаров
   getProducts: async (
-    filters: CatalogFilters = {},
+    filters?: CatalogFilters,
   ): Promise<PaginatedResponse<ProductDTO>> => {
+    // Преобразуем sort в правильный формат для бэкенда
+    let sortParams = filters?.sort;
+    if (Array.isArray(sortParams)) {
+      sortParams = sortParams.join(",");
+    }
+
+    const params = {
+      ...filters,
+      sort: sortParams || "sortOrder,asc",
+    };
+
     const response = await apiClient.get<PaginatedResponse<ProductDTO>>(
       API_ROUTES.catalog.products,
-      { params: filters },
+      { params },
     );
     return response.data;
   },
@@ -117,5 +129,19 @@ export const catalogApi = {
     return response.data.content
       .filter((p) => p.id !== productId)
       .slice(0, limit);
+  },
+
+  // Получение категорий
+  getCategories: async (): Promise<Array<{ id: number; name: string }>> => {
+    // Временная заглушка - возвращаем пустой массив
+    // В реальном проекте здесь должен быть запрос к API
+    return [];
+  },
+
+  // Получение брендов
+  getBrands: async (): Promise<Array<{ id: number; name: string }>> => {
+    // Временная заглушка - возвращаем пустой массив
+    // В реальном проекте здесь должен быть запрос к API
+    return [];
   },
 };

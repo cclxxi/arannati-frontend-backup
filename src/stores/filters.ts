@@ -27,9 +27,10 @@ const defaultFilters: CatalogFilters = {
   minPrice: undefined,
   maxPrice: undefined,
   search: undefined,
+  onSale: undefined,
   page: 0,
   size: 24,
-  sort: ["sortOrder,asc"],
+  sort: "sortOrder,asc",
 };
 
 export const useFiltersStore = create<FiltersState>()(
@@ -61,7 +62,8 @@ export const useFiltersStore = create<FiltersState>()(
         state.professional !== undefined ||
         state.minPrice ||
         state.maxPrice ||
-        state.search
+        state.search ||
+        state.onSale
       );
     },
 
@@ -74,23 +76,9 @@ export const useFiltersStore = create<FiltersState>()(
       if (state.professional !== undefined) count++;
       if (state.minPrice || state.maxPrice) count++;
       if (state.search) count++;
+      if (state.onSale) count++;
 
       return count;
     },
   })),
-);
-
-// Подписка на изменения фильтров для аналитики
-useFiltersStore.subscribe(
-  (state) => ({
-    categoryId: state.categoryId,
-    brandId: state.brandId,
-    professional: state.professional,
-    minPrice: state.minPrice,
-    maxPrice: state.maxPrice,
-  }),
-  (filters) => {
-    // Здесь можно отправлять события в аналитику
-    console.log("Фильтры изменены:", filters);
-  },
 );

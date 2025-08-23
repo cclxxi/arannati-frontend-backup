@@ -115,11 +115,17 @@ export default function FeaturedProducts() {
   };
 
   const formatPrice = (price: number | string) => {
+    const numPrice = Number(price);
+    // Handle NaN, null, undefined, and negative values
+    if (isNaN(numPrice) || numPrice == null || numPrice < 0) {
+      return "0 ₸";
+    }
+
     return new Intl.NumberFormat("ru-RU", {
       style: "currency",
       currency: "KZT",
       minimumFractionDigits: 0,
-    }).format(Number(price));
+    }).format(numPrice);
   };
 
   if (isLoading) {
@@ -173,7 +179,7 @@ export default function FeaturedProducts() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {products.slice(0, 8).map((product: ProductDTO) => (
                 <div
-                  key={product.id}
+                  key={`featured-${product.id}`}
                   className="group bg-white dark:bg-forest/30 backdrop-blur-sm rounded-2xl p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                 >
                   <div className="relative aspect-square mb-4 overflow-hidden rounded-xl">
@@ -194,15 +200,16 @@ export default function FeaturedProducts() {
                     )}
 
                     {/* Badges */}
-                    {product.salePrice && (
+                    {product.salePrice && product.regularPrice && (
                       <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
                         -
-                        {Math.round(
-                          ((Number(product.regularPrice) -
-                            Number(product.salePrice)) /
-                            Number(product.regularPrice)) *
-                            100,
-                        )}
+                        {(() => {
+                          const regular = Number(product.regularPrice);
+                          const sale = Number(product.salePrice);
+                          if (isNaN(regular) || isNaN(sale) || regular <= 0)
+                            return 0;
+                          return Math.round(((regular - sale) / regular) * 100);
+                        })()}
                         %
                       </span>
                     )}

@@ -248,6 +248,13 @@ export const api = {
     }));
   },
 
+  // Brands
+  getBrands: () => {
+    return ApiClient.get("/catalog/brands").catch(() => ({
+      data: [], // Возвращаем пустой массив в случае ошибки
+    }));
+  },
+
   // Cart - только для авторизованных пользователей
   getCartCount: async () => {
     if (!auth.isAuthenticated()) {
