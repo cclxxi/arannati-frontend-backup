@@ -379,7 +379,7 @@ export default function CatalogPage() {
             ) : (
               <>
                 <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-                  Найдено товаров: {products.length}
+                  Найдено товаров: {data?.pages[0]?.totalElements || 0}
                   {isFetchingNextPage && " (загрузка...)"}
                 </div>
 
