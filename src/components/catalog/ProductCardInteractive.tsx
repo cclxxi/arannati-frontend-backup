@@ -16,11 +16,13 @@ import AuthRequiredModal from "@/components/common/AuthRequiredModal";
 interface ProductCardInteractiveProps {
   product: ProductDTO;
   viewMode?: "grid" | "list";
+  index?: number;
 }
 
 export default function ProductCardInteractive({
   product,
   viewMode = "grid",
+  index = 0,
 }: ProductCardInteractiveProps) {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
@@ -177,6 +179,8 @@ export default function ProductCardInteractive({
                   src={product.images[0].imagePath}
                   alt={product.name}
                   fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  priority={index < 6}
                   className="object-cover group-hover:scale-110 transition-transform duration-300"
                 />
               ) : (

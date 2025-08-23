@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { Logo } from "@/components/ui";
 import { Dropdown, type MenuProps } from "antd";
 import { useRouter } from "next/navigation";
 import Header from "@/components/common/Header";
@@ -36,25 +35,6 @@ export default function HomePage() {
       router.push(`/catalog?brandId=${brand.brandId}`);
     },
   }));
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Закрываем мобильное меню при изменении размера экрана
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setIsMenuOpen(false);
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-beige-light via-white to-mint/10 dark:from-forest dark:via-gray-900 dark:to-forest/50 transition-colors duration-500">
@@ -175,18 +155,14 @@ export default function HomePage() {
             {/* Company Info */}
             <div className="space-y-4">
               <div className="h-12">
-                {isDark ? (
-                  <Image
-                    src="/images/arannati_logos/logo_white.svg"
-                    alt="Arannati"
-                    width={150}
-                    height={48}
-                    className="h-12 w-auto object-contain"
-                    style={{ width: "auto", height: "48px" }}
-                  />
-                ) : (
-                  <Logo className="h-12 w-auto filter brightness-0 invert" />
-                )}
+                <Image
+                  src="/images/arannati_logos/logo_white.svg"
+                  alt="Arannati"
+                  width={150}
+                  height={48}
+                  className="h-12 w-auto object-contain"
+                  style={{ width: "auto", height: "48px" }}
+                />
               </div>
               <p className="text-beige-light text-sm">
                 Профессиональная косметика премиум класса

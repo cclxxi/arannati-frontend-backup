@@ -16,6 +16,7 @@ import {
 import { useInView } from "react-intersection-observer";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
+import { catalogApi } from "@/lib/api/services/catalog";
 import ProductCardInteractive from "@/components/catalog/ProductCardInteractive";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ProductDTO } from "@/types/api";
@@ -95,27 +96,22 @@ export default function CatalogPage() {
   } = useInfiniteQuery({
     queryKey: ["catalog", filters],
     queryFn: async ({ pageParam = 0 }) => {
-      const params: Record<string, string> = {
-        page: pageParam.toString(),
-        size: "20",
+      const catalogFilters = {
+        page: pageParam,
+        size: 20,
+        search: filters.search,
+        categoryId: filters.categoryId,
+        brandId: filters.brandId,
+        minPrice: filters.minPrice,
+        maxPrice: filters.maxPrice,
+        onSale: filters.onSale,
+        sort: filters.sort,
       };
 
-      if (filters.search) params["search"] = filters.search;
-      if (filters.categoryId)
-        params["categoryId"] = filters.categoryId.toString();
-      if (filters.brandId) params["brandId"] = filters.brandId.toString();
-      if (filters.minPrice) params["minPrice"] = filters.minPrice.toString();
-      if (filters.maxPrice) params["maxPrice"] = filters.maxPrice.toString();
-      if (filters.onSale) params["onSale"] = filters.onSale.toString();
-      if (filters.sort && filters.sort.length > 0) {
-        params["sort"] = filters.sort.join(",");
-      }
-
-      const response = await api.getProducts(params);
-      return response.data;
+      return await catalogApi.getProducts(catalogFilters);
     },
     getNextPageParam: (lastPage, pages) => {
-      if ((lastPage as { last?: boolean })?.last) return undefined;
+      if (lastPage?.last) return undefined;
       return pages.length;
     },
     initialPageParam: 0,
@@ -165,7 +161,7 @@ export default function CatalogPage() {
 
   const products =
     data?.pages.flatMap(
-      (page) => (page as { content?: ProductDTO[] })?.content || [],
+      (page) => page?.content || [],
     ) || [];
 
   const sortOptions = [
@@ -410,6 +406,7 @@ export default function CatalogPage() {
                         <ProductCardInteractive
                           product={product}
                           viewMode={viewMode}
+                          index={index}
                         />
                       </motion.div>
                     ))}
