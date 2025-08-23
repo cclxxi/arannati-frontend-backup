@@ -1,11 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  Menu,
-  X,
-  ChevronDown,
-} from "lucide-react";
+import { Menu, X, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Logo, ThemeToggle } from "@/components/ui";
 import { useTheme } from "@/hooks";
@@ -23,7 +19,10 @@ interface HeaderProps {
   hideSearch?: boolean;
 }
 
-export default function Header({ className = "", hideSearch = false }: HeaderProps) {
+export default function Header({
+  className = "",
+  hideSearch = false,
+}: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { isDark } = useTheme();
@@ -106,7 +105,9 @@ export default function Header({ className = "", hideSearch = false }: HeaderPro
           </nav>
 
           {/* Search Bar - Desktop */}
-          {!hideSearch && <SearchBar className="hidden lg:block w-80 xl:w-96 ml-4" />}
+          {!hideSearch && (
+            <SearchBar className="hidden lg:block w-80 xl:w-96 ml-4" />
+          )}
 
           {/* Right Side Icons */}
           <div className="flex items-center space-x-2 sm:space-x-4 ml-4">

@@ -159,10 +159,7 @@ export default function CatalogPage() {
     (key) => key !== "sort" && filters[key as keyof Filters],
   ).length;
 
-  const products =
-    data?.pages.flatMap(
-      (page) => page?.content || [],
-    ) || [];
+  const products = data?.pages.flatMap((page) => page?.content || []) || [];
 
   const sortOptions = [
     { value: "sortOrder,asc", label: "По популярности" },
