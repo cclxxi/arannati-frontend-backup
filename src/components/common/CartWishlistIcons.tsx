@@ -52,6 +52,15 @@ export function CartWishlistIcons() {
     }
   }, [isAuthenticated, fetchCart, fetchWishlist]);
 
+  // Добавляем отладку для проверки структуры данных (можно убрать после исправления)
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      console.log("Cart items structure:", cartItems);
+      console.log("First item:", cartItems[0]);
+      console.log("First item product:", cartItems[0]?.product);
+    }
+  }, [cartItems]);
+
   const cartCount = getTotalCount();
   const wishlistCount = getWishlistCount();
   const totalPrice = getTotalPrice();
@@ -98,24 +107,38 @@ export function CartWishlistIcons() {
     setShowAuthModal(true);
   };
 
-  // Компонент изображения товара
-  const ProductImage = ({ src, alt }: { src?: string; alt: string }) => (
-    <div className="relative w-full h-full">
-      {src ? (
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          className="object-cover rounded"
-          sizes="48px"
-        />
-      ) : (
-        <div className="w-full h-full bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center">
-          <ShoppingCart className="w-4 h-4 text-gray-400" />
-        </div>
-      )}
-    </div>
-  );
+  // Компонент изображения товара с улучшенной обработкой
+  const ProductImage = ({ item, alt }: { item?: any; alt: string }) => {
+    // Пытаемся найти изображение в разных местах структуры данных
+    const imagePath =
+      item?.product?.images?.[0]?.imagePath ||
+      item?.product?.images?.[0]?.url ||
+      item?.product?.image ||
+      item?.product?.imageUrl ||
+      item?.product?.mainImage ||
+      item?.images?.[0]?.imagePath ||
+      item?.images?.[0]?.url ||
+      item?.image ||
+      item?.imageUrl;
+
+    return (
+      <div className="relative w-full h-full">
+        {imagePath ? (
+          <Image
+            src={imagePath}
+            alt={alt}
+            fill
+            className="object-cover rounded"
+            sizes="48px"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center">
+            <ShoppingCart className="w-4 h-4 text-gray-400" />
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Рендер содержимого дропдауна корзины
   const cartDropdownRender = () => (
@@ -146,22 +169,26 @@ export function CartWishlistIcons() {
                 {/* Image */}
                 <div className="w-12 h-12 flex-shrink-0">
                   <ProductImage
-                    src={item.product?.images?.[0]?.imagePath}
+                    item={item}
                     alt={item.product?.name || ""}
                   />
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <Link href={`/catalog/product/${item.product?.id}`}>
+                  <Link
+                    href={`/catalog/product/${item.product?.id || item.productId}`}
+                  >
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate hover:text-mint transition-colors">
-                      {item.product?.name}
+                      {item.product?.name || "Товар"}
                     </p>
                   </Link>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {formatPrice(
-                      item.product?.effectivePrice ||
+                      item.product?.salePrice ||
+                        item.product?.effectivePrice ||
                         item.product?.regularPrice ||
+                        item.product?.price ||
                         0,
                     )}
                   </p>
@@ -206,7 +233,19 @@ export function CartWishlistIcons() {
               Итого:
             </span>
             <span className="font-semibold text-gray-900 dark:text-white">
-              {formatPrice(totalPrice)}
+              {formatPrice(
+                totalPrice > 0
+                  ? totalPrice
+                  : cartItems.reduce((sum, item) => {
+                      const price =
+                        item.product?.salePrice ||
+                        item.product?.effectivePrice ||
+                        item.product?.regularPrice ||
+                        item.product?.price ||
+                        0;
+                      return sum + price * item.quantity;
+                    }, 0),
+              )}
             </span>
           </div>
           <Link href="/cart">
@@ -248,22 +287,26 @@ export function CartWishlistIcons() {
                 {/* Image */}
                 <div className="w-12 h-12 flex-shrink-0">
                   <ProductImage
-                    src={item.product?.images?.[0]?.imagePath}
+                    item={item}
                     alt={item.product?.name || ""}
                   />
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <Link href={`/catalog/product/${item.product?.id}`}>
+                  <Link
+                    href={`/catalog/product/${item.product?.id || item.productId}`}
+                  >
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate hover:text-mint transition-colors">
-                      {item.product?.name}
+                      {item.product?.name || "Товар"}
                     </p>
                   </Link>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {formatPrice(
-                      item.product?.effectivePrice ||
+                      item.product?.salePrice ||
+                        item.product?.effectivePrice ||
                         item.product?.regularPrice ||
+                        item.product?.price ||
                         0,
                     )}
                   </p>
