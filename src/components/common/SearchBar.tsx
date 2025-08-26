@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { api } from "@/lib/api/client";
-import { debounce } from "lodash";
 import type { ProductDTO, PaginatedResponse } from "@/types/api";
 
 interface SearchBarProps {
@@ -34,9 +33,9 @@ export default function SearchBar({
     | { data: { products: ProductDTO[] } }
     | { data: PaginatedResponse<ProductDTO> };
 
-  // Debounced search function
-  const debouncedSearch = useCallback(
-    debounce(async (searchQuery: string) => {
+  // Search function
+  const performSearch = useCallback(
+    async (searchQuery: string) => {
       if (searchQuery.length < 2) {
         setResults([]);
         setIsLoading(false);
@@ -89,18 +88,22 @@ export default function SearchBar({
       } finally {
         setIsLoading(false);
       }
-    }, 300),
-    [],
+    },
+    [setResults, setIsLoading],
   );
 
   useEffect(() => {
-    if (query.length >= 2) {
-      debouncedSearch(query);
-    } else {
-      setResults([]);
-      setIsLoading(false);
-    }
-  }, [query, debouncedSearch]);
+    const timeoutId = setTimeout(() => {
+      if (query.length >= 2) {
+        performSearch(query);
+      } else {
+        setResults([]);
+        setIsLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [query, performSearch]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -181,7 +184,7 @@ export default function SearchBar({
               <div className="max-h-96 overflow-y-auto">
                 {results.map((product) => (
                   <Link
-                    key={product.id}
+                    key={`search-${product.id}`}
                     href={`/product/${product.id}`}
                     onClick={() => setShowResults(false)}
                     className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-forest/50 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"

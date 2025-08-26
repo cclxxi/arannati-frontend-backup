@@ -1,24 +1,19 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { USER_ROLES } from "@/constants";
-import { STORAGE_KEYS } from "@/lib/constants";
+import { getUserFromToken } from "@/lib/utils/jwt";
 
-// Типы для JWT payload
-interface JWTPayload {
-  sub?: string;
-  userId?: string;
-  id?: string;
-  role?: string;
-  authorities?: string[];
-  exp?: number;
-  iat?: number;
-  [key: string]: unknown;
-}
+// Публичные роуты, доступные всем
+const publicRoutes = [
+  "/",
+  "/catalog",
+  "/product",
+  "/about",
+  "/contacts",
+  "/privacy",
+  "/terms",
+];
 
-// Публичные роуты (доступны всем)
-const publicRoutes = ["/", "/catalog", "/product", "/about", "/contacts"];
-
-// Роуты только для неавторизованных
+// Роуты авторизации
 const authRoutes = [
   "/login",
   "/register",
@@ -26,86 +21,29 @@ const authRoutes = [
   "/reset-password",
 ];
 
-// Защищенные роуты с требуемыми ролями
+// Защищенные роуты и требуемые роли
 const protectedRoutes: Record<string, string[]> = {
   "/dashboard": [USER_ROLES.USER, USER_ROLES.COSMETOLOGIST, USER_ROLES.ADMIN],
   "/cart": [USER_ROLES.USER, USER_ROLES.COSMETOLOGIST, USER_ROLES.ADMIN],
-  "/checkout": [USER_ROLES.USER, USER_ROLES.COSMETOLOGIST, USER_ROLES.ADMIN],
-  "/orders": [USER_ROLES.USER, USER_ROLES.COSMETOLOGIST, USER_ROLES.ADMIN],
-  "/wishlist": [USER_ROLES.USER, USER_ROLES.COSMETOLOGIST, USER_ROLES.ADMIN],
-  "/cosmetologist": [USER_ROLES.COSMETOLOGIST],
+  "/checkout": [USER_ROLES.USER, USER_ROLES.COSMETOLOGIST],
+  "/wishlist": [USER_ROLES.USER, USER_ROLES.COSMETOLOGIST],
+  "/cosmetologist": [USER_ROLES.COSMETOLOGIST, USER_ROLES.ADMIN],
   "/admin": [USER_ROLES.ADMIN],
 };
 
-// Функция для проверки, начинается ли путь с указанного префикса
-function pathStartsWith(path: string, prefix: string): boolean {
-  return path === prefix || path.startsWith(`${prefix}/`);
+// Функция для проверки, начинается ли путь с указанного роута
+function pathStartsWith(pathname: string, route: string): boolean {
+  return pathname === route || pathname.startsWith(`${route}/`);
 }
 
-// Функция для получения токена из cookies
-function getAuthToken(request: NextRequest): string | undefined {
-  return request.cookies.get(STORAGE_KEYS.AUTH_TOKEN)?.value;
-}
+// Получение токена из cookies
+function getAuthToken(request: NextRequest): string | null {
+  // Пробуем получить токен из разных мест
+  const accessToken = request.cookies.get("accessToken")?.value;
+  const authToken = request.cookies.get("auth-token")?.value;
+  const token = request.cookies.get("token")?.value;
 
-// Функция для декодирования JWT токена
-function decodeJWTPayload(token: string): JWTPayload | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) {
-      return null;
-    }
-
-    const payload = parts[1];
-    if (!payload) {
-      return null;
-    }
-
-    const decodedPayload = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.parse(decodedPayload) as JWTPayload;
-  } catch {
-    console.error("Error decoding JWT");
-    return null;
-  }
-}
-
-// Функция для проверки истечения токена
-function isTokenExpired(token: string): boolean {
-  try {
-    const payload = decodeJWTPayload(token);
-    if (!payload || !payload.exp) {
-      return true;
-    }
-
-    const currentTime = Math.floor(Date.now() / 1000);
-    return payload.exp < currentTime;
-  } catch {
-    return true;
-  }
-}
-
-// Функция для извлечения пользователя из токена
-function getUserFromToken(
-  token: string,
-): { role: string; userId: string } | null {
-  try {
-    if (isTokenExpired(token)) {
-      return null;
-    }
-
-    const payload = decodeJWTPayload(token);
-    if (!payload) {
-      return null;
-    }
-
-    // Адаптируем под структуру вашего JWT payload
-    return {
-      role: payload.role || payload.authorities?.[0] || USER_ROLES.USER,
-      userId: payload.sub || payload.userId || payload.id || "",
-    };
-  } catch {
-    console.error("Error extracting user from token");
-    return null;
-  }
+  return accessToken || authToken || token || null;
 }
 
 export async function middleware(request: NextRequest) {
@@ -113,23 +51,28 @@ export async function middleware(request: NextRequest) {
   const token = getAuthToken(request);
   const user = token ? getUserFromToken(token) : null;
 
-  // Clone the request headers and add pathname for server component access
+  // Добавляем pathname в заголовки для серверных компонентов
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", pathname);
+
+  // Если есть пользователь, добавляем его данные в заголовки
+  if (user) {
+    requestHeaders.set("x-user-role", user.role);
+    requestHeaders.set("x-user-id", user.userId);
+  }
 
   // Проверяем публичные роуты
   const isPublicRoute = publicRoutes.some((route) =>
     pathStartsWith(pathname, route),
   );
 
-  // Проверяем auth роуты (login, register и т.д.)
+  // Проверяем auth роуты
   const isAuthRoute = authRoutes.some((route) =>
     pathStartsWith(pathname, route),
   );
 
   // Если пользователь авторизован и пытается зайти на auth роуты
   if (user && isAuthRoute) {
-    // Редирект в зависимости от роли
     let redirectUrl = "/dashboard";
 
     if (user.role === USER_ROLES.ADMIN) {
@@ -141,7 +84,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(redirectUrl, request.url));
   }
 
-  // Если это публичный роут, пропускаем с модифицированными заголовками
+  // Публичные роуты - пропускаем
   if (isPublicRoute || isAuthRoute) {
     return NextResponse.next({
       request: {
@@ -162,11 +105,10 @@ export async function middleware(request: NextRequest) {
 
       // Проверяем роль
       if (!allowedRoles.includes(user.role)) {
-        // Если нет доступа, показываем 403
         return NextResponse.redirect(new URL("/403", request.url));
       }
 
-      // Все проверки пройдены - возвращаем с модифицированными заголовками
+      // Все проверки пройдены
       return NextResponse.next({
         request: {
           headers: requestHeaders,
@@ -177,7 +119,6 @@ export async function middleware(request: NextRequest) {
 
   // API роуты
   if (pathname.startsWith("/api")) {
-    // Публичные API эндпоинты
     const publicApiRoutes = [
       "/api/auth/login",
       "/api/auth/register",
@@ -197,16 +138,35 @@ export async function middleware(request: NextRequest) {
         { status: 401 },
       );
     }
+
+    // Для API добавляем CORS заголовки
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+
+    response.headers.set("Access-Control-Allow-Origin", "*");
+    response.headers.set(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS",
+    );
+    response.headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization",
+    );
+
+    return response;
   }
 
-  // Для всех остальных роутов проверяем авторизацию
-  if (!user && !isPublicRoute) {
+  // Для всех остальных роутов - если нет токена, редирект на login
+  if (!user) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Return response with modified headers for all other cases
+  // Возвращаем ответ с модифицированными заголовками
   return NextResponse.next({
     request: {
       headers: requestHeaders,
@@ -214,17 +174,17 @@ export async function middleware(request: NextRequest) {
   });
 }
 
-// Конфигурация для middleware
+// Конфигурация middleware
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (for API routes that don't need pathname header)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder and file extensions
+     * Применяем middleware ко всем роутам кроме:
+     * - _next/static (статические файлы)
+     * - _next/image (оптимизация изображений)
+     * - favicon.ico (фавикон)
+     * - public (публичные файлы)
+     * - файлы с расширениями
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|public).*)",
+    "/((?!_next/static|_next/image|favicon.ico|public|.*\\.).*)",
   ],
 };

@@ -18,7 +18,7 @@ export function useLogin() {
   const { login } = importedUseAuth();
   const mutation = useMutation({
     mutationFn: async (data: { email: string; password: string }) => {
-      return login(data.email, data.password);
+      return login(data);
     },
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Dropdown, type MenuProps } from "antd";
+import { Dropdown, type MenuProps } from "antd";
 import { Sun, Moon, Monitor } from "lucide-react";
 import { useTheme } from "@/hooks";
 
@@ -38,11 +38,11 @@ export function ThemeToggle({
 
   const currentIcon =
     theme === "light" ? (
-      <Sun size={20} />
+      <Sun size={23} />
     ) : theme === "dark" ? (
-      <Moon size={20} />
+      <Moon size={23} />
     ) : (
-      <Monitor size={20} />
+      <Monitor size={23} />
     );
 
   return (
@@ -52,9 +52,12 @@ export function ThemeToggle({
         selectedKeys: [theme],
       }}
       placement="bottomRight"
-      trigger={["click"]}
+      trigger={["hover"]}
     >
-      <Button type="text" icon={currentIcon} className={className}>
+      <button
+        className={`p-2 hover:bg-white/20 dark:hover:bg-white/10 rounded-full transition-colors ${className || ""}`}
+      >
+        {currentIcon}
         {showLabel && (
           <span className="ml-2">
             {theme === "light"
@@ -64,7 +67,7 @@ export function ThemeToggle({
                 : "Системная"}
           </span>
         )}
-      </Button>
+      </button>
     </Dropdown>
   );
 }

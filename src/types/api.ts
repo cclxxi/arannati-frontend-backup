@@ -42,7 +42,10 @@ export interface ProductDTO {
   categoryName?: string;
   brandId: number;
   brandName?: string;
+  brand?: BrandDTO;
   regularPrice: number;
+  price?: number;
+  oldPrice?: number;
   cosmetologistPrice?: number;
   salePrice?: number;
   professional: boolean;
@@ -272,5 +275,5 @@ export interface WishlistItemDTO {
   userId: number;
   productId: number;
   createdAt: string;
-  product: ProductDTO;
+  product?: ProductDTO;
 }
