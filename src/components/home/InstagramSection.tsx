@@ -113,7 +113,7 @@ export default function InstagramSection() {
           >
             <Image
               className="w-5 h-5"
-              src={"images/meta/Instagram_Glyph_Gradient.svg"}
+              src={"/images/meta/Instagram_Glyph_Gradient.svg"}
               alt="Instagram"
               width={24}
               height={24}
@@ -152,7 +152,7 @@ export default function InstagramSection() {
                     {post.media_url.startsWith("/") ? (
                       <div className="w-full h-full bg-gradient-to-br from-brown/20 to-mint/20 flex items-center justify-center">
                         <Image
-                          src={"images/meta/Instagram_Glyph_Gradient.svg"}
+                          src={"/images/meta/Instagram_Glyph_Gradient.svg"}
                           alt="Instagram"
                           className="w-20 h-20
                                                 text-brown/30"
@@ -214,7 +214,7 @@ export default function InstagramSection() {
           >
             <span>Смотреть все публикации</span>
             <Image
-              src={"images/meta/Instagram_Glyph_Gradient.svg"}
+              src={"/images/meta/Instagram_Glyph_Gradient.svg"}
               alt="Instagram"
               className="w-4 h-4"
               width={24}

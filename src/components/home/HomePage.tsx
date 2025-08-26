@@ -173,7 +173,7 @@ export default function HomePage() {
                   className="hover:text-brown-light transition-colors"
                 >
                   <Image
-                    src={"images/meta/Instagram_Glyph_Gradient.svg"}
+                    src={"/images/meta/Instagram_Glyph_Gradient.svg"}
                     alt="Instagram"
                     className="w-5 h-5"
                     width={24}
