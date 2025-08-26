@@ -211,7 +211,7 @@ export default function SearchBar({
                         {product.name}
                       </h4>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {product.brandName} • {product.sku}
+                        {product.brandName}
                       </p>
                     </div>
                     <div className="text-right ml-3">
@@ -234,7 +234,7 @@ export default function SearchBar({
                 ))}
               </div>
               <Link
-                href={`/search?q=${encodeURIComponent(query)}`}
+                href={`/catalog?q=${encodeURIComponent(query)}`}
                 onClick={() => setShowResults(false)}
                 className="block p-3 text-center text-sm text-mint hover:bg-gray-50 dark:hover:bg-forest/50 transition-colors border-t border-gray-100 dark:border-gray-700"
               >
