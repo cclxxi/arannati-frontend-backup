@@ -52,15 +52,6 @@ export function CartWishlistIcons() {
     }
   }, [isAuthenticated, fetchCart, fetchWishlist]);
 
-  // Добавляем отладку для проверки структуры данных (можно убрать после исправления)
-  useEffect(() => {
-    if (cartItems.length > 0) {
-      console.log("Cart items structure:", cartItems);
-      console.log("First item:", cartItems[0]);
-      console.log("First item product:", cartItems[0]?.product);
-    }
-  }, [cartItems]);
-
   const cartCount = getTotalCount();
   const wishlistCount = getWishlistCount();
   const totalPrice = getTotalPrice();
@@ -108,6 +99,7 @@ export function CartWishlistIcons() {
   };
 
   // Компонент изображения товара с улучшенной обработкой
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ProductImage = ({ item, alt }: { item?: any; alt: string }) => {
     // Пытаемся найти изображение в разных местах структуры данных
     const imagePath =
@@ -168,10 +160,7 @@ export function CartWishlistIcons() {
               >
                 {/* Image */}
                 <div className="w-12 h-12 flex-shrink-0">
-                  <ProductImage
-                    item={item}
-                    alt={item.product?.name || ""}
-                  />
+                  <ProductImage item={item} alt={item.product?.name || ""} />
                 </div>
 
                 {/* Info */}
@@ -286,10 +275,7 @@ export function CartWishlistIcons() {
               >
                 {/* Image */}
                 <div className="w-12 h-12 flex-shrink-0">
-                  <ProductImage
-                    item={item}
-                    alt={item.product?.name || ""}
-                  />
+                  <ProductImage item={item} alt={item.product?.name || ""} />
                 </div>
 
                 {/* Info */}

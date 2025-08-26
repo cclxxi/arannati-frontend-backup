@@ -1,10 +1,17 @@
+// src/stores/useCartStore.ts
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { cartApi } from "@/lib/api/services/cart";
-import type { CartDTO } from "@/types/api";
+import { catalogApi } from "@/lib/api/services/catalog";
+import type { CartDTO, ProductDTO } from "@/types/api";
+
+// Расширяем CartDTO для включения полной информации о продукте
+export interface CartItemWithProduct extends CartDTO {
+  product?: ProductDTO;
+}
 
 export interface CartStore {
-  items: CartDTO[];
+  items: CartItemWithProduct[];
   isLoading: boolean;
 
   // Actions
@@ -17,11 +24,11 @@ export interface CartStore {
   getTotalPrice: () => number;
   isInCart: (productId: number) => boolean;
   getItemQuantity: (productId: number) => number;
-  getCartItem: (productId: number) => CartDTO | undefined;
+  getCartItem: (productId: number) => CartItemWithProduct | undefined;
 }
 
 // Функция для валидации и нормализации items
-const normalizeItems = (items: unknown): CartDTO[] => {
+const normalizeItems = (items: unknown): CartItemWithProduct[] => {
   if (!items) return [];
   if (Array.isArray(items)) return items;
   if (typeof items === "object" && items !== null) {
@@ -42,8 +49,32 @@ export const useCartStore = create<CartStore>()(
         set({ isLoading: true });
         try {
           const response = await cartApi.getItems();
-          const items = normalizeItems(response);
-          set({ items, isLoading: false });
+          const cartItems = normalizeItems(response);
+
+          // Загружаем информацию о продуктах для каждого элемента корзины
+          const itemsWithProducts = await Promise.all(
+            cartItems.map(async (item) => {
+              try {
+                // Загружаем информацию о продукте по productId
+                const product = await catalogApi.getProductDetails(
+                  item.productId,
+                );
+                return {
+                  ...item,
+                  product,
+                } as CartItemWithProduct;
+              } catch (error) {
+                console.error(
+                  `Failed to load product ${item.productId}:`,
+                  error,
+                );
+                // Если не удалось загрузить продукт, возвращаем элемент без product
+                return item as CartItemWithProduct;
+              }
+            }),
+          );
+
+          set({ items: itemsWithProducts, isLoading: false });
         } catch (error) {
           console.error("Failed to fetch cart:", error);
           set({ items: [], isLoading: false });
@@ -65,7 +96,7 @@ export const useCartStore = create<CartStore>()(
             );
           } else {
             await cartApi.addItem({ productId, quantity });
-            await state.fetchCart(); // Перезагружаем для синхронизации
+            await state.fetchCart(); // Перезагружаем для синхронизации с продуктами
           }
         } catch (error: unknown) {
           if (error && typeof error === "object" && "response" in error) {
@@ -91,9 +122,16 @@ export const useCartStore = create<CartStore>()(
 
         try {
           await cartApi.updateItem(itemId, quantity);
-          await get().fetchCart();
+          // Обновляем количество локально для быстрого отклика
+          set((state) => ({
+            items: normalizeItems(state.items).map((item) =>
+              item.id === itemId ? { ...item, quantity } : item,
+            ),
+          }));
         } catch (error) {
           console.error("Failed to update cart item:", error);
+          // При ошибке перезагружаем корзину
+          await get().fetchCart();
           throw error;
         }
       },
@@ -124,7 +162,12 @@ export const useCartStore = create<CartStore>()(
       getTotalPrice: () => {
         const items = normalizeItems(get().items);
         return items.reduce((total, item) => {
-          const price = item.product?.price || item.product?.regularPrice || 0;
+          const price =
+            item.product?.salePrice ||
+            item.product?.effectivePrice ||
+            item.product?.regularPrice ||
+            item.product?.price ||
+            0;
           return total + price * (item.quantity || 0);
         }, 0);
       },
@@ -153,6 +196,11 @@ export const useCartStore = create<CartStore>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.items = normalizeItems(state.items);
+          // При восстановлении из localStorage перезагружаем данные с сервера
+          // чтобы получить актуальную информацию о продуктах
+          setTimeout(() => {
+            state.fetchCart();
+          }, 100);
         }
       },
     },
