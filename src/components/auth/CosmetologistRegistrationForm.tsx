@@ -54,11 +54,12 @@ const registrationSchema = z
       .max(50, "Фамилия слишком длинная"),
     phone: z
       .string()
-      .regex(/^\+?[1-9]\d{1,14}$/, "Некорректный формат телефона"),
+      .regex(/^\+?[0-9]\d{1,14}$/, "Некорректный формат телефона"),
     institutionName: z
       .string()
       .min(1, "Введите название учебного заведения")
-      .max(255, "Название слишком длинное"),
+      .max(255, "Название слишком длинное")
+      .optional(),
     graduationYear: z
       .number()
       .min(1990, "Год окончания не может быть раньше 1990")
@@ -69,7 +70,8 @@ const registrationSchema = z
     specialization: z
       .string()
       .min(1, "Введите специализацию")
-      .max(255, "Специализация слишком длинная"),
+      .max(255, "Специализация слишком длинная")
+      .optional(),
     licenseNumber: z.string().optional(),
     diplomaFile: z.instanceof(File, { message: "Загрузите диплом" }),
   })
@@ -102,6 +104,8 @@ export function CosmetologistRegisterForm() {
   });
 
   const onSubmit = (data: FormData) => {
+    console.log("[DEBUG] Form submitted with data:", data);
+
     register(data, {
       onSuccess: () => {
         notify.success(
@@ -110,9 +114,15 @@ export function CosmetologistRegisterForm() {
         router.push(APP_ROUTES.auth.login);
       },
       onError: (error: ApiError) => {
+        console.error("[DEBUG] Registration error:", error);
         notify.error(error.response?.data?.message || "Ошибка при регистрации");
       },
     });
+  };
+
+  const onFormError = (errors: Record<string, unknown>) => {
+    console.error("[DEBUG] Form validation errors:", errors);
+    notify.error("Пожалуйста, исправьте ошибки в форме");
   };
 
   const isFormDisabled = isPending;
@@ -153,8 +163,24 @@ export function CosmetologistRegisterForm() {
     },
   };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      handleSubmit(onSubmit, onFormError)(e);
+    } catch (error) {
+      console.error("[DEBUG] Unexpected form error:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        notify.error(
+          "Пожалуйста, проверьте правильность заполнения всех полей",
+        );
+      } else {
+        notify.error("Произошла ошибка при отправке формы");
+      }
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleFormSubmit} className="space-y-6">
       {/* Личные данные */}
       <div>
         <h3 className="text-lg font-semibold text-text-primary mb-4">
@@ -329,7 +355,7 @@ export function CosmetologistRegisterForm() {
               render={({ field }) => (
                 <Input
                   {...field}
-                  placeholder="Учебное заведение"
+                  placeholder="Учебное заведение (опционально)"
                   prefix={<Building className="w-5 h-5 text-gray-400" />}
                   error={!!errors.institutionName}
                   disabled={isFormDisabled}
@@ -386,7 +412,7 @@ export function CosmetologistRegisterForm() {
               render={({ field }) => (
                 <Input
                   {...field}
-                  placeholder="Специализация"
+                  placeholder="Специализация (опционально)"
                   prefix={<GraduationCap className="w-5 h-5 text-gray-400" />}
                   error={!!errors.specialization}
                   disabled={isFormDisabled}

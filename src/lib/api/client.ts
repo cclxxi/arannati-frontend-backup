@@ -180,13 +180,28 @@ export class ApiClient {
     data?: ApiRequestData,
     options?: ApiRequestOptions,
   ): Promise<ApiResponse<T>> {
+    // For FormData, don't set Content-Type - let browser set it with boundary
+    if (data instanceof FormData) {
+      const token = getCookie("auth-token");
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      return this.request<T>(endpoint, {
+        ...options,
+        method: "POST",
+        headers,
+        body: data as BodyInit,
+      });
+    }
+
     return this.request<T>(endpoint, {
       ...options,
       method: "POST",
-      body:
-        data && !(data instanceof FormData)
-          ? JSON.stringify(data)
-          : (data as BodyInit | null),
+      body: data ? JSON.stringify(data) : null,
     });
   }
 
@@ -195,13 +210,28 @@ export class ApiClient {
     data?: ApiRequestData,
     options?: ApiRequestOptions,
   ): Promise<ApiResponse<T>> {
+    // For FormData, don't set Content-Type - let browser set it with boundary
+    if (data instanceof FormData) {
+      const token = getCookie("auth-token");
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      return this.request<T>(endpoint, {
+        ...options,
+        method: "PUT",
+        headers,
+        body: data as BodyInit,
+      });
+    }
+
     return this.request<T>(endpoint, {
       ...options,
       method: "PUT",
-      body:
-        data && !(data instanceof FormData)
-          ? JSON.stringify(data)
-          : (data as BodyInit | null),
+      body: data ? JSON.stringify(data) : null,
     });
   }
 

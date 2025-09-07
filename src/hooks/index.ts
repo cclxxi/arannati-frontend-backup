@@ -55,13 +55,38 @@ export function useRegisterCosmetologist() {
     mutationFn: async (data: {
       email: string;
       password: string;
-      firstName?: string;
-      lastName?: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      institutionName?: string;
+      graduationYear: number;
+      specialization?: string;
+      licenseNumber?: string;
+      diplomaFile: File;
     }) => {
-      const response = await apiClient.post("/auth/register", {
-        ...data,
-        role: "COSMETOLOGIST",
-      });
+      const formData = new FormData();
+      formData.append("email", data.email);
+      formData.append("password", data.password);
+      formData.append("firstName", data.firstName);
+      formData.append("lastName", data.lastName);
+      formData.append("phone", data.phone);
+      if (data.institutionName) {
+        formData.append("institutionName", data.institutionName);
+      }
+      formData.append("graduationYear", data.graduationYear.toString());
+      if (data.specialization) {
+        formData.append("specialization", data.specialization);
+      }
+      if (data.licenseNumber) {
+        formData.append("licenseNumber", data.licenseNumber);
+      }
+      formData.append("diplomaFile", data.diplomaFile);
+      formData.append("role", "COSMETOLOGIST");
+
+      const response = await apiClient.post(
+        "/auth/register/cosmetologist",
+        formData,
+      );
       return response.data;
     },
   });

@@ -222,7 +222,7 @@ export const STORAGE_KEYS = {
 // Regex Patterns
 export const REGEX_PATTERNS = {
   EMAIL: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-  PHONE: /^\+?[1-9]\d{1,14}$/,
+  PHONE: /^\+?[0-9]\d{1,14}$/,
   PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/,
 } as const;
 

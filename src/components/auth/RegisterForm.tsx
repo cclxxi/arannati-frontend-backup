@@ -12,12 +12,14 @@ import {
   PhoneOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRegister } from "@/hooks";
 import { registerSchema, type RegisterInput } from "@/lib/utils/validation";
 import { APP_ROUTES } from "@/lib/constants";
 import toast from "react-hot-toast";
 
 export function RegisterForm() {
+  const router = useRouter();
   const { mutate: register, isLoading, error } = useRegister();
 
   const {
@@ -42,6 +44,7 @@ export function RegisterForm() {
       register(data);
       toast.success("Регистрация успешна! Проверьте email для подтверждения.");
       reset();
+      router.push(APP_ROUTES.auth.login);
     } catch (error) {
       console.error("Registration error:", error);
       toast.error("Ошибка регистрации");
