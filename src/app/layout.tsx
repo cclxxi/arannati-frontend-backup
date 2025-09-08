@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
+import { App } from "antd";
 import { QueryProvider } from "@/lib/react-query/provider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
@@ -11,10 +12,14 @@ import ChatWidget from "@/components/chat/ChatWidget";
 import { headers } from "next/headers";
 import "./globals.css";
 import React from "react";
+import StoreInitializer from "@/components/providers/StoreInitializer";
+import StorageCleanupProvider from "@/components/providers/StorageCleanupProvider";
+import WarningSuppressionProvider from "@/components/providers/WarningSuppressionProvider";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://arannati.kz"),
   title: {
     default: "Arannati - Профессиональная косметика",
     template: "%s | Arannati",
@@ -61,9 +66,16 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "64x64" },
+      {
+        url: "/images/system-images/favicon-16x16.svg",
+        sizes: "16x16",
+        type: "image/svg+xml",
+      },
+    ],
     shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+    apple: "/images/system-images/apple-touch-icon.svg",
   },
 };
 
@@ -130,21 +142,30 @@ export default async function RootLayout({
             <AuthProvider>
               <AppAuthProvider>
                 <AntdRenderProvider>
-                  <AntdRegistry>
-                    {children}
-                    <Toaster
-                      position="top-right"
-                      toastOptions={{
-                        duration: 4000,
-                        style: {
-                          background: "var(--color-surface)",
-                          color: "var(--color-text-primary)",
-                        },
-                      }}
-                    />
-                    {/* Chat widget - don't show on admin pages as they have their own chat interface */}
-                    {!isAdminPage && <ChatWidget position="bottom-right" />}
-                  </AntdRegistry>
+                  <StorageCleanupProvider>
+                    <AntdRegistry>
+                      <App>
+                        <StoreInitializer>
+                          <WarningSuppressionProvider />
+                          {children}
+                          <Toaster
+                            position="top-right"
+                            toastOptions={{
+                              duration: 4000,
+                              style: {
+                                background: "var(--color-surface)",
+                                color: "var(--color-text-primary)",
+                              },
+                            }}
+                          />
+                          {/* Chat widget - don't show on admin pages as they have their own chat interface */}
+                          {!isAdminPage && (
+                            <ChatWidget position="bottom-right" />
+                          )}
+                        </StoreInitializer>
+                      </App>
+                    </AntdRegistry>
+                  </StorageCleanupProvider>
                 </AntdRenderProvider>
               </AppAuthProvider>
             </AuthProvider>

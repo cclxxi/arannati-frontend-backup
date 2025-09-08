@@ -1,5 +1,5 @@
 // Экспорт всех API сервисов
-export { default as apiClient, auth } from "./client";
+export { default as apiClient, auth, api } from "./client";
 export { authApi } from "./services/auth";
 export { catalogApi } from "./services/catalog";
 export { cartApi } from "./services/cart";

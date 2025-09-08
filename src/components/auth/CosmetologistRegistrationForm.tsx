@@ -1,3 +1,4 @@
+// src/components/auth/CosmetologistRegistrationForm.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -20,20 +21,11 @@ import {
   EyeOff,
   Upload as UploadIcon,
 } from "lucide-react";
-import { Button, Input, FormItem, FormError, notify } from "@/components/ui";
+import { Button, Input, FormItem, FormError } from "@/components/ui";
 import { APP_ROUTES } from "@/constants";
 import type { UploadFile, RcFile } from "antd/es/upload";
 import { useRegisterCosmetologist } from "@/hooks";
-
-// Define an error type for better type safety
-interface ApiError {
-  response?: {
-    data?: {
-      message?: string;
-    };
-  };
-  message?: string;
-}
+import toast from "react-hot-toast";
 
 // Schema валидации
 const registrationSchema = z
@@ -54,11 +46,12 @@ const registrationSchema = z
       .max(50, "Фамилия слишком длинная"),
     phone: z
       .string()
-      .regex(/^\+?[1-9]\d{1,14}$/, "Некорректный формат телефона"),
+      .regex(/^\+?[0-9]\d{1,14}$/, "Некорректный формат телефона"),
     institutionName: z
       .string()
       .min(1, "Введите название учебного заведения")
-      .max(255, "Название слишком длинное"),
+      .max(255, "Название слишком длинное")
+      .optional(),
     graduationYear: z
       .number()
       .min(1990, "Год окончания не может быть раньше 1990")
@@ -68,9 +61,12 @@ const registrationSchema = z
       ),
     specialization: z
       .string()
-      .min(1, "Введите специализацию")
-      .max(255, "Специализация слишком длинная"),
-    licenseNumber: z.string().optional(),
+      .max(255, "Специализация слишком длинная")
+      .optional(),
+    licenseNumber: z
+      .string()
+      .max(100, "Номер лицензии слишком длинный")
+      .optional(),
     diplomaFile: z.instanceof(File, { message: "Загрузите диплом" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -101,18 +97,33 @@ export function CosmetologistRegisterForm() {
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    register(data, {
-      onSuccess: () => {
-        notify.success(
-          "Заявка отправлена! Мы проверим ваши данные и свяжемся с вами.",
-        );
-        router.push(APP_ROUTES.auth.login);
-      },
-      onError: (error: ApiError) => {
-        notify.error(error.response?.data?.message || "Ошибка при регистрации");
-      },
-    });
+  const onSubmit = async (data: FormData) => {
+    try {
+      console.log("[DEBUG] Form submitted with data:", data);
+
+      // Вызываем мутацию регистрации
+      register(data, {
+        onSuccess: () => {
+          // Переходим на страницу логина после успешной регистрации
+          router.push(APP_ROUTES.auth.login);
+        },
+      });
+    } catch (error) {
+      console.error("[DEBUG] Unexpected form submission error:", error);
+      toast.error("Произошла непредвиденная ошибка");
+    }
+  };
+
+  const onFormError = (formErrors: Record<string, { message?: string }>) => {
+    console.error("[DEBUG] Form validation errors:", formErrors);
+
+    // Показываем первую ошибку валидации
+    const firstError = Object.values(formErrors)[0];
+    if (firstError?.message) {
+      toast.error(firstError.message);
+    } else {
+      toast.error("Пожалуйста, исправьте ошибки в форме");
+    }
   };
 
   const isFormDisabled = isPending;
@@ -129,8 +140,8 @@ export function CosmetologistRegisterForm() {
         return false;
       }
 
-      const isLt5M = file.size / 1024 / 1024 < 10;
-      if (!isLt5M) {
+      const isLt10M = file.size / 1024 / 1024 < 10;
+      if (!isLt10M) {
         message.error("Файл должен быть меньше 10MB!");
         return false;
       }
@@ -154,7 +165,7 @@ export function CosmetologistRegisterForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit, onFormError)} className="space-y-6">
       {/* Личные данные */}
       <div>
         <h3 className="text-lg font-semibold text-text-primary mb-4">
@@ -223,8 +234,9 @@ export function CosmetologistRegisterForm() {
               render={({ field }) => (
                 <Input
                   {...field}
-                  placeholder="Телефон (+7...)"
+                  placeholder="Телефон (например: +79991234567)"
                   type="tel"
+                  autoComplete="tel"
                   prefix={<Phone className="w-5 h-5 text-gray-400" />}
                   error={!!errors.phone}
                   disabled={isFormDisabled}
@@ -233,17 +245,7 @@ export function CosmetologistRegisterForm() {
             />
             <FormError error={errors.phone?.message} />
           </FormItem>
-        </div>
-      </div>
 
-      <Divider />
-
-      {/* Пароль */}
-      <div>
-        <h3 className="text-lg font-semibold text-text-primary mb-4">
-          Создайте пароль
-        </h3>
-        <div className="space-y-4">
           <FormItem>
             <Controller
               control={control}
@@ -329,7 +331,7 @@ export function CosmetologistRegisterForm() {
               render={({ field }) => (
                 <Input
                   {...field}
-                  placeholder="Учебное заведение"
+                  placeholder="Учебное заведение (опционально)"
                   prefix={<Building className="w-5 h-5 text-gray-400" />}
                   error={!!errors.institutionName}
                   disabled={isFormDisabled}
@@ -386,7 +388,7 @@ export function CosmetologistRegisterForm() {
               render={({ field }) => (
                 <Input
                   {...field}
-                  placeholder="Специализация"
+                  placeholder="Специализация (опционально)"
                   prefix={<GraduationCap className="w-5 h-5 text-gray-400" />}
                   error={!!errors.specialization}
                   disabled={isFormDisabled}

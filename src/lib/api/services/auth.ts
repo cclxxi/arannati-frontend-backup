@@ -84,10 +84,7 @@ export const authApi = {
     console.log("Extracted tokens:", { accessToken, refreshToken });
 
     // Сохраняем токены
-    auth.setTokens({
-      accessToken,
-      refreshToken,
-    });
+    auth.setTokens(accessToken, refreshToken);
 
     // Формируем правильный ответ
     return {
@@ -151,7 +148,9 @@ export const authApi = {
 
   // Получение текущего пользователя
   getMe: async (): Promise<UserDTO> => {
-    const response = await apiClient.get<UserDTO>(API_ROUTES.auth.me);
+    const response = await apiClient.get<UserDTO>(API_ROUTES.auth.me, {
+      requiresAuth: true,
+    });
     return response.data;
   },
 

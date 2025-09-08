@@ -13,7 +13,7 @@
       "type": "image/x-icon"
     },
     {
-      "src": "/favicon-16x16.png",
+      "src": "/images/system-images/favicon-16x16.svg",
       "sizes": "16x16",
       "type": "image/png"
     },

@@ -10,8 +10,10 @@ import {
   UserOutlined,
   LockOutlined,
 } from "@ant-design/icons";
+import Link from "next/link";
 import { useLogin } from "@/hooks";
 import { loginSchema, type LoginInput } from "@/lib/utils/validation";
+import { APP_ROUTES } from "@/lib/constants";
 import toast from "react-hot-toast";
 
 export function LoginForm() {
@@ -35,7 +37,6 @@ export function LoginForm() {
   const onSubmit = async (data: LoginInput) => {
     try {
       login(data);
-      toast.success("Успешный вход в систему!");
       reset();
     } catch (error) {
       console.error("Login error:", error);
@@ -118,6 +119,29 @@ export function LoginForm() {
             {isLoading || isSubmitting ? "Вход..." : "Войти"}
           </Button>
         </Form.Item>
+
+        {/* Navigation buttons */}
+        <div className="mt-4 space-y-3">
+          <div className="text-center">
+            <Link
+              href={APP_ROUTES.auth.forgotPassword}
+              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              Забыли пароль?
+            </Link>
+          </div>
+          <div className="text-center">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Еще нет аккаунта?{" "}
+            </span>
+            <Link
+              href={APP_ROUTES.auth.register}
+              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+            >
+              Зарегистрироваться
+            </Link>
+          </div>
+        </div>
       </Form>
     </div>
   );

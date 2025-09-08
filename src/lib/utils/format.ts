@@ -5,6 +5,11 @@ dayjs.locale("ru");
 
 // Форматирование цены для Казахстана
 export const formatPrice = (price: number): string => {
+  // Handle NaN, null, undefined, and negative values
+  if (isNaN(price) || price == null || price < 0) {
+    return "0 ₸";
+  }
+
   return new Intl.NumberFormat("ru-KZ", {
     style: "currency",
     currency: "KZT",

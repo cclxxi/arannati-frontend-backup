@@ -69,8 +69,10 @@ export default function AdminChatsPage() {
   } = useQuery({
     queryKey: ["admin-chats"],
     queryFn: async () => {
-      const response = await apiClient.get("/api/messages/chats");
-      return response.data.data.chats || [];
+      const response = await apiClient.get<{ chats: Chat[] }>(
+        "/api/messages/chats",
+      );
+      return response.data.chats || [];
     },
     enabled: user?.role === "ADMIN",
   });
@@ -79,11 +81,11 @@ export default function AdminChatsPage() {
   const { data: chatMessages = [] } = useQuery({
     queryKey: ["chat-messages", selectedChat?.id],
     queryFn: async () => {
-      if (!selectedChat) return [];
-      const response = await apiClient.get(
+      if (!selectedChat) return [] as MessageDTO[];
+      const response = await apiClient.get<MessageDTO[]>(
         `/api/messages/chat/${selectedChat.id}`,
       );
-      return response.data.data || [];
+      return response.data || [];
     },
     enabled: !!selectedChat,
   });
