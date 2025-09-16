@@ -222,7 +222,7 @@ export const STORAGE_KEYS = {
 // Regex Patterns
 export const REGEX_PATTERNS = {
   EMAIL: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-  PHONE: /^\+?[1-9]\d{1,14}$/,
+  PHONE: /^\+?[0-9]\d{1,14}$/,
   PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/,
 } as const;
 
@@ -236,3 +236,46 @@ export const DEFAULTS = {
   SESSION_TIMEOUT: 30 * 60 * 1000, // 30 minutes
   MAX_RECENTLY_VIEWED: 10,
 } as const;
+
+export const BRANDS_DATA = [
+  {
+    id: 1,
+    name: "ATACHE",
+    brandId: 1,
+  },
+  {
+    id: 2,
+    name: "Image Skincare",
+    brandId: 2,
+  },
+  {
+    id: 3,
+    name: "IPH",
+    brandId: 3,
+  },
+  {
+    id: 4,
+    name: "LEVISSIME",
+    brandId: 4,
+  },
+  {
+    id: 5,
+    name: "VAGHEGGI",
+    brandId: 5,
+  },
+  {
+    id: 6,
+    name: "VEC",
+    brandId: 6,
+  },
+  {
+    id: 7,
+    name: "Yon-Ka",
+    brandId: 7,
+  },
+  {
+    id: 8,
+    name: "Liposomal Vitamins",
+    brandId: 8,
+  },
+];

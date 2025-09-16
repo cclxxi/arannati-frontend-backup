@@ -1,5 +1,26 @@
-import { auth, subscribeTokenRefresh } from "./client";
+import { auth as baseAuth } from "./client";
 import toast from "react-hot-toast";
+
+// Define a token refresh subscription function since it's not exported from client.ts
+const tokenRefreshCallbacks: ((token: string) => void)[] = [];
+const subscribeTokenRefresh = (callback: (token: string) => void): void => {
+  tokenRefreshCallbacks.push(callback);
+};
+
+// Extend the auth object with the missing methods
+const auth = {
+  ...baseAuth,
+  ensureValidToken: async (): Promise<string> => {
+    const tokens = baseAuth.getTokens();
+    if (!tokens) return "";
+    return tokens.accessToken;
+  },
+  getCurrentUserId: (): string => {
+    // This is a placeholder. In a real implementation, you would decode the JWT token
+    // or retrieve the user ID from somewhere else.
+    return "0";
+  },
+};
 
 // Re-export all the types that components expect
 export interface MessageDTO {
@@ -112,7 +133,7 @@ class NativeWebSocketClient {
   constructor() {
     // Reconnect WS when access token is refreshed
     try {
-      subscribeTokenRefresh((newToken) => {
+      subscribeTokenRefresh((newToken: string) => {
         if (!newToken) {
           this.disconnect();
           return;

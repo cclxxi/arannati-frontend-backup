@@ -118,7 +118,7 @@ export function ProductCard({
       </button>
 
       {/* Изображение */}
-      <div className="aspect-square overflow-hidden bg-gray-100">
+      <div className="relative aspect-square overflow-hidden bg-gray-100">
         <Image
           src={image}
           alt={title}

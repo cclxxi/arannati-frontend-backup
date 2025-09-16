@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock } from "lucide-react";
@@ -11,11 +11,14 @@ import {
   resetPasswordSchema,
   type ResetPasswordInput,
 } from "@/utils/validation";
+import toast from "react-hot-toast";
+import { APP_ROUTES } from "@/lib/constants";
 
 export function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const token = searchParams.get("token");
   const resetPasswordMutation = useResetPassword();
 
@@ -27,8 +30,45 @@ export function ResetPasswordForm() {
     resolver: zodResolver(resetPasswordSchema),
   });
 
+  // Handle success and error states
+  useEffect(() => {
+    if (resetPasswordMutation.isSuccess) {
+      toast.success("Пароль успешно изменен!");
+      // Redirect to login page after successful password reset
+      setTimeout(() => {
+        router.push(APP_ROUTES.auth.login);
+      }, 2000);
+    }
+  }, [resetPasswordMutation.isSuccess, router]);
+
+  useEffect(() => {
+    if (resetPasswordMutation.isError) {
+      const error = resetPasswordMutation.error as Error & {
+        response?: {
+          status?: number;
+          data?: { message?: string };
+        };
+      };
+      let errorMessage = "Произошла ошибка при сбросе пароля";
+
+      // Handle specific error cases
+      if (error?.response?.status === 400) {
+        errorMessage = "Неверный или истекший токен сброса пароля";
+      } else if (error?.response?.status === 404) {
+        errorMessage = "Токен сброса пароля не найден";
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      toast.error(errorMessage);
+    }
+  }, [resetPasswordMutation.isError, resetPasswordMutation.error]);
+
   const onSubmit = (data: ResetPasswordInput) => {
     if (!token) {
+      toast.error("Отсутствует токен сброса пароля");
       return;
     }
 

@@ -14,7 +14,10 @@ import type { MenuProps } from "antd";
 import { Badge } from "antd";
 import { DashboardLayoutBase } from "./DashboardLayoutBase";
 import { APP_ROUTES } from "@/constants";
-import { useCartItems, useWishlistItems } from "@/hooks";
+import { useCartStore } from "@/stores/useCartStore";
+import { useWishlistStore } from "@/stores/useWishlistStore";
+import type { CartStore } from "@/stores/useCartStore";
+import type { WishlistStore } from "@/stores/useWishlistStore";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -23,12 +26,10 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: cartItems = [] } = useCartItems();
-  const { data: wishlistItems = [] } = useWishlistItems();
-  
-  // Calculate counts from hook data like in dropdown components
-  const cartCount = Array.isArray(cartItems) ? cartItems.reduce((sum, item) => sum + item.quantity, 0) : 0;
-  const wishlistCount = Array.isArray(wishlistItems) ? wishlistItems.length : 0;
+  const cartCount = useCartStore((state: CartStore) => state.getTotalCount());
+  const wishlistCount = useWishlistStore((state: WishlistStore) =>
+    state.getCount(),
+  );
 
   const menuItems: MenuProps["items"] = [
     {

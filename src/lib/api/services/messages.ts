@@ -42,8 +42,7 @@ export const messagesApi = {
   sendMessage: async (data: SendMessageInput): Promise<MessageDTO> => {
     const response = await apiClient.post<MessageDTO>(
       API_ROUTES.messages.send,
-      null,
-      { params: data },
+      data as unknown as Record<string, unknown>,
     );
     return response.data;
   },
@@ -52,8 +51,7 @@ export const messagesApi = {
   sendSupportRequest: async (data: SendSupportInput): Promise<MessageDTO> => {
     const response = await apiClient.post<MessageDTO>(
       API_ROUTES.messages.support,
-      null,
-      { params: data },
+      data as unknown as Record<string, unknown>,
     );
     return response.data;
   },
@@ -62,8 +60,7 @@ export const messagesApi = {
   replySupportRequest: async (data: ReplySupportInput): Promise<MessageDTO> => {
     const response = await apiClient.post<MessageDTO>(
       API_ROUTES.messages.supportReply,
-      null,
-      { params: data },
+      data as unknown as Record<string, unknown>,
     );
     return response.data;
   },
@@ -74,8 +71,7 @@ export const messagesApi = {
   ): Promise<MessageDTO> => {
     const response = await apiClient.post<MessageDTO>(
       API_ROUTES.messages.decline,
-      null,
-      { params: data },
+      data as unknown as Record<string, unknown>,
     );
     return response.data;
   },

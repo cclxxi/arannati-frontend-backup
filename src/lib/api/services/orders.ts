@@ -81,7 +81,9 @@ export const ordersApi = {
       const response = await apiClient.get<
         | PaginatedResponse<OrderDTO>
         | WithData<BackendPaginatedResponse<OrderDTO>>
-      >(API_ROUTES.orders.list, { params: filters });
+      >(API_ROUTES.orders.list, {
+        params: filters as Record<string, string | number | boolean>,
+      });
 
       // Проверяем структуру ответа
       if (!response.data) {
@@ -144,7 +146,7 @@ export const ordersApi = {
   createOrder: async (data: OrderCreateDTO): Promise<OrderDTO> => {
     const response = await apiClient.post<OrderDTO>(
       API_ROUTES.orders.create,
-      data,
+      data as unknown as Record<string, unknown>,
     );
     return response.data;
   },

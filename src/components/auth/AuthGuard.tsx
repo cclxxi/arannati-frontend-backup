@@ -20,7 +20,7 @@ export function AuthGuard({
   requireVerified = false,
 }: AuthGuardProps) {
   const { isAuthenticated, user } = useIsAuthenticated();
-  const { hasRole } = useHasRole(requireRoles);
+  const hasRole = useHasRole(requireRoles);
 
   // Проверка авторизации
   if (requireAuth && !isAuthenticated) {

@@ -1,379 +1,427 @@
-import axios, {
-  type AxiosError,
-  type AxiosInstance,
-  type InternalAxiosRequestConfig,
-} from "axios";
-import { config } from "@/lib/config";
-import { handleApiError } from "@/lib/utils/error";
-import { STORAGE_KEYS, API_ROUTES } from "@/lib/constants";
+// src/lib/api/client.ts
 import Cookies from "js-cookie";
-import { getUserFromToken, isTokenExpired } from "@/lib/utils/jwt";
+import toast from "react-hot-toast";
 
-// Типы для аутентификации
-interface AuthTokens {
-  accessToken: string;
-  refreshToken?: string;
+// Типы для API
+export interface ApiResponse<T = unknown> {
+  data: T;
 }
 
-interface RefreshTokenResponse {
-  accessToken: string;
-  refreshToken: string;
+export interface ApiError {
+  message: string;
+  code?: string;
+  status?: number;
 }
 
-// Типы для параметров запроса
-type ParamValue = string | number | boolean | null | undefined;
-type ParamArray = ParamValue[];
-type QueryParams = Record<string, ParamValue | ParamArray>;
+export interface ApiRequestOptions {
+  headers?: Record<string, string>;
+  params?: Record<string, string | number | boolean>;
+  requiresAuth?: boolean;
+  showError?: boolean;
+}
 
-// Кастомная функция для сериализации параметров
-const paramsSerializer = (params: QueryParams): string => {
-  const searchParams = new URLSearchParams();
+export type ApiRequestData = Record<string, unknown> | FormData | null;
 
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === null || value === undefined) {
-      return;
-    }
-
-    // Обработка массивов - для sort передаем каждый элемент отдельно
-    if (Array.isArray(value)) {
-      if (key === "sort") {
-        // Для sort передаем каждый элемент как отдельный параметр sort
-        value.forEach((item) => {
-          if (item !== null && item !== undefined) {
-            searchParams.append("sort", String(item));
-          }
-        });
-      } else {
-        // Для других массивов используем формат key[]=value
-        value.forEach((item) => {
-          if (item !== null && item !== undefined) {
-            searchParams.append(`${key}[]`, String(item));
-          }
-        });
-      }
-    } else {
-      searchParams.append(key, String(value));
-    }
-  });
-
-  return searchParams.toString();
-};
-
-// Создаем instance Axios с правильными настройками CORS
-const apiClient: AxiosInstance = axios.create({
-  baseURL: config.api.baseUrl,
-  timeout: config.api.timeout,
-  withCredentials: true, // Важно для CORS с credentials
-  headers: {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  },
-  paramsSerializer, // Используем кастомный сериализатор
-});
-
-// Флаг для предотвращения множественных запросов на обновление токена
-let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
-
-// Функция для подписки на обновление токена
-const subscribeTokenRefresh = (callback: (token: string) => void) => {
-  refreshSubscribers.push(callback);
-};
-
-// Функция для оповещения всех подписчиков
-const onTokenRefreshed = (token: string) => {
-  refreshSubscribers.forEach((callback) => callback(token));
-  refreshSubscribers = [];
-};
-
-const stripBearer = (value?: string): string | undefined => {
-  if (!value) return undefined;
-  // Токен уже без Bearer префикса? Возвращаем как есть
-  if (!value.startsWith("Bearer ")) return value;
-  // Убираем Bearer префикс
-  return value.substring(7).trim();
-};
-
-// Функция для получения токенов
-const getAuthTokens = (): AuthTokens | null => {
-  const accessToken = Cookies.get(STORAGE_KEYS.AUTH_TOKEN);
-  const refreshToken = Cookies.get(STORAGE_KEYS.REFRESH_TOKEN);
-
-  // Если нет access токена, возвращаем null
-  if (!accessToken || accessToken === "undefined") {
-    return null;
-  }
-
-  return {
-    accessToken, // Токен уже без Bearer префикса в куки
-    refreshToken,
-  };
-};
-
-// Функция для сохранения токенов
-const setAuthTokens = (tokens: AuthTokens) => {
-  const cookieOptions = {
-    secure: config.isProduction,
-    sameSite: "lax" as const, // Изменено на lax для CORS
-    path: "/",
-  };
-
-  // Убираем Bearer префикс если есть
-  const accessToken = stripBearer(tokens.accessToken);
-
-  if (!accessToken) {
-    console.error("No access token to save");
-    return;
-  }
-
-  // Сохраняем access token
-  Cookies.set(STORAGE_KEYS.AUTH_TOKEN, accessToken, {
-    ...cookieOptions,
-    expires: 1, // 1 день
-  });
-
-  // Сохраняем refresh token если есть
-  if (tokens.refreshToken) {
-    const refreshToken = stripBearer(tokens.refreshToken);
-    if (refreshToken) {
-      Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken, {
-        ...cookieOptions,
-        expires: 7, // 7 дней
-      });
-    }
-  }
-
-  console.log("Tokens saved to cookies:", {
-    accessToken: accessToken.substring(0, 20) + "...",
-    refreshToken: tokens.refreshToken ? "present" : "absent",
-  });
-};
-
-// Функция для удаления токенов
-const removeAuthTokens = () => {
-  Cookies.remove(STORAGE_KEYS.AUTH_TOKEN, { path: "/" });
-  Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
-};
-
-// Функция для проверки и обновления токена при необходимости
-const ensureValidToken = async (): Promise<string | null> => {
-  const tokens = getAuthTokens();
-
-  if (!tokens?.accessToken) {
-    return null;
-  }
-
-  // Проверяем, не истек ли токен
-  if (isTokenExpired(tokens.accessToken)) {
-    console.log("Access token expired, attempting refresh...");
-    return await refreshAccessToken();
-  }
-
-  return tokens.accessToken;
-};
-
-// Функция для обновления токена
-const refreshAccessToken = async (): Promise<string | null> => {
-  try {
-    const tokens = getAuthTokens();
-    if (!tokens?.refreshToken) {
-      console.log("No refresh token available");
-      return null;
-    }
-
-    // Проверяем refresh token на истечение
-    if (isTokenExpired(tokens.refreshToken)) {
-      console.log("Refresh token expired");
-      return null;
-    }
-
-    console.log("Refreshing access token...");
-    const response = await axios.post<RefreshTokenResponse>(
-      `${config.api.baseUrl}${API_ROUTES.auth.refresh}`,
-      { refreshToken: tokens.refreshToken },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        withCredentials: true,
-      },
-    );
-
-    // Извлекаем токены из ответа (могут быть с префиксом Bearer)
-    const newAccessToken =
-      response.data.accessToken?.replace("Bearer ", "") ||
-      response.data.accessToken;
-    const newRefreshToken =
-      response.data.refreshToken?.replace("Bearer ", "") ||
-      response.data.refreshToken;
-
-    const newTokens: AuthTokens = {
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
-    };
-
-    setAuthTokens(newTokens);
-    console.log("Token refreshed successfully");
-    return newAccessToken;
-  } catch (error) {
-    console.error("Token refresh failed:", error);
-    removeAuthTokens();
-
-    // Редирект на страницу входа только если мы не на странице входа
-    if (
-      typeof window !== "undefined" &&
-      !window.location.pathname.includes("/login")
-    ) {
-      window.location.href = "/login";
-    }
-
-    return null;
-  }
-};
-
-// Request interceptor
-apiClient.interceptors.request.use(
-  async (config: InternalAxiosRequestConfig) => {
-    // Only set JSON content type if data is not FormData
-    if (config.data && !(config.data instanceof FormData)) {
-      config.headers["Content-Type"] = "application/json";
-    }
-
-    // Пропускаем добавление токена для публичных эндпоинтов
-    const publicEndpoints = [
-      API_ROUTES.auth.login,
-      API_ROUTES.auth.register,
-      API_ROUTES.auth.registerCosmetologist,
-      API_ROUTES.auth.forgotPassword,
-      API_ROUTES.auth.resetPassword,
-      API_ROUTES.auth.refresh,
-      "/dashboard",
-      "/catalog",
-      "/cart/count",
-      "/wishlist/check",
-      "/statistics",
-      "/orders/shipping", // shipping calculation is public
-    ];
-
-    const isPublicEndpoint = publicEndpoints.some((endpoint) =>
-      config.url?.includes(endpoint),
-    );
-
-    // Специальная логика для /orders - GET запросы публичные
-    const isPublicOrdersRequest =
-      config.url?.includes("/orders") &&
-      config.method?.toLowerCase() === "get" &&
-      !config.url?.includes("/orders/my"); // /orders/my требует авторизацию
-
-    if (!isPublicEndpoint && !isPublicOrdersRequest) {
-      const token = await ensureValidToken();
-      if (token) {
-        // Добавляем Bearer префикс при отправке
-        config.headers.Authorization = `Bearer ${token}`;
-        console.log("Added auth header for:", config.url);
-      } else {
-        console.log("No valid token for protected endpoint:", config.url);
-      }
-    } else {
-      console.log("Public access to endpoint:", config.url);
-    }
-
-    return config;
-  },
-  (error: AxiosError) => {
-    return Promise.reject(error);
-  },
-);
-
-// Response interceptor
-apiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & {
-      _retry?: boolean;
-    };
-
-    // Обработка 401 ошибки
-    if (error.response?.status === 401 && !originalRequest?._retry) {
-      if (isRefreshing) {
-        // Ждем обновления токена
-        return new Promise((resolve) => {
-          subscribeTokenRefresh((token: string) => {
-            if (originalRequest?.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            resolve(apiClient(originalRequest));
-          });
-        });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      const newToken = await refreshAccessToken();
-      isRefreshing = false;
-      onTokenRefreshed(newToken || "");
-
-      if (newToken && originalRequest?.headers) {
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return apiClient(originalRequest);
-      }
-    }
-
-    // Обработка CORS ошибок
-    if (error.code === "ERR_NETWORK" || error.message.includes("CORS")) {
-      console.error("CORS Error:", {
-        url: error.config?.url,
-        method: error.config?.method,
-        message: error.message,
-      });
-
-      // Проверяем, доступен ли бэкенд
-      if (error.config?.url) {
-        console.error(
-          `Failed to reach backend at: ${error.config.baseURL}${error.config.url}`,
-        );
-      }
-    }
-
-    return Promise.reject(handleApiError(error));
-  },
-);
-
-// Объект auth для работы с токенами
+// Auth utilities
 export const auth = {
-  getTokens: getAuthTokens,
-  setTokens: setAuthTokens,
-  removeTokens: removeAuthTokens,
-  ensureValidToken,
-  isAuthenticated: (): boolean => {
-    const tokens = getAuthTokens();
-    return !!(tokens?.accessToken && !isTokenExpired(tokens.accessToken));
+  getTokens: () => {
+    const accessToken = Cookies.get("auth-token");
+    const refreshToken = Cookies.get("refresh-token");
+    return accessToken ? { accessToken, refreshToken } : null;
   },
-  getCurrentUserId: (): string | null => {
-    const tokens = getAuthTokens();
-    if (!tokens?.accessToken) return null;
 
-    const user = getUserFromToken(tokens.accessToken);
-    return user?.userId || null;
+  setTokens: (accessToken: string, refreshToken?: string) => {
+    Cookies.set("auth-token", accessToken, {
+      expires: 7,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+    if (refreshToken) {
+      Cookies.set("refresh-token", refreshToken, {
+        expires: 30,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+    }
   },
-  getCurrentUser: () => {
-    const tokens = getAuthTokens();
-    if (!tokens?.accessToken) return null;
 
-    return getUserFromToken(tokens.accessToken);
+  clearTokens: () => {
+    Cookies.remove("auth-token");
+    Cookies.remove("refresh-token");
   },
+
+  removeTokens: () => {
+    Cookies.remove("auth-token");
+    Cookies.remove("refresh-token");
+  },
+
+  isAuthenticated: () => {
+    return !!Cookies.get("auth-token");
+  },
+};
+
+// API Client Class
+class ApiClientClass {
+  private baseURL: string;
+  private defaultHeaders: Record<string, string>;
+
+  constructor() {
+    this.baseURL =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+    this.defaultHeaders = {};
+  }
+
+  public async request<T = unknown>(
+    endpoint: string,
+    options: ApiRequestOptions & {
+      method?: string;
+      body?: BodyInit | null;
+    } = {},
+  ): Promise<ApiResponse<T>> {
+    const {
+      method = "GET",
+      headers = {},
+      params,
+      body,
+      requiresAuth = false,
+      showError = true,
+    } = options;
+
+    // Construct URL with params
+    let url = `${this.baseURL}${endpoint}`;
+    if (params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        searchParams.append(key, String(value));
+      });
+      url += `?${searchParams.toString()}`;
+    }
+
+    // Prepare headers
+    const requestHeaders: Record<string, string> = {
+      ...this.defaultHeaders,
+      ...headers,
+    };
+
+    // Для FormData НЕ устанавливаем Content-Type и Accept
+    if (body instanceof FormData) {
+      delete requestHeaders["Content-Type"];
+      delete requestHeaders["Accept"];
+    } else {
+      // Для обычных запросов добавляем Accept
+      requestHeaders["Accept"] = "application/json";
+
+      // Для JSON body добавляем Content-Type
+      if (body && !(body instanceof Blob)) {
+        requestHeaders["Content-Type"] = "application/json";
+      }
+    }
+
+    // Add auth token if required or if it exists
+    const tokens = auth.getTokens();
+    if ((requiresAuth || tokens?.accessToken) && tokens?.accessToken) {
+      requestHeaders["Authorization"] = `Bearer ${tokens.accessToken}`;
+    }
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: requestHeaders,
+        body,
+        credentials: "include", // Important for CORS with cookies
+      });
+
+      // Handle non-2xx responses
+      if (!response.ok) {
+        let errorMessage = `Request failed: ${response.status}`;
+        let errorData: {
+          message?: string;
+          error?: string;
+          [key: string]: unknown;
+        } | null = null;
+
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            errorData = await response.json();
+            errorMessage =
+              errorData?.message || errorData?.error || errorMessage;
+          }
+        } catch (e) {
+          console.error("Failed to parse error response:", e);
+        }
+
+        // Handle specific error codes
+        if (response.status === 401) {
+          // Only clear tokens and redirect if this was an authenticated request
+          if (requiresAuth) {
+            auth.clearTokens();
+            // Redirect to login
+            if (typeof window !== "undefined") {
+              window.location.href = "/login";
+            }
+          }
+          throw new Error("Unauthorized");
+        }
+
+        if (response.status === 403) {
+          throw new Error("Forbidden");
+        }
+
+        // Show error toast if enabled
+        if (showError && response.status !== 401 && response.status !== 403) {
+          toast.error(errorMessage);
+        }
+
+        const error = new Error(errorMessage) as Error & {
+          response: {
+            data: {
+              message?: string;
+              error?: string;
+              [key: string]: unknown;
+            } | null;
+            status: number;
+          };
+        };
+        error.response = { data: errorData, status: response.status };
+        throw error;
+      }
+
+      // Handle empty responses
+      if (response.status === 204) {
+        return { data: {} as T };
+      }
+
+      // Parse JSON response
+      const responseData = await response.json();
+      return { data: responseData };
+    } catch (error) {
+      // Network errors or other issues
+      if (error instanceof Error) {
+        // Don't show error toast for auth errors on non-auth requests
+        if (
+          !requiresAuth &&
+          (error.message === "Unauthorized" || error.message === "Forbidden")
+        ) {
+          return { data: {} as T };
+        }
+
+        if (
+          showError &&
+          error.message !== "Unauthorized" &&
+          error.message !== "Forbidden"
+        ) {
+          if (
+            error.message === "Failed to fetch" ||
+            error.message.includes("ERR_CONNECTION_REFUSED")
+          ) {
+            toast.error(
+              "Не удалось подключиться к серверу. Проверьте, запущен ли backend на порту 8080.",
+            );
+          }
+        }
+
+        console.error(`API request failed: ${endpoint}`, error);
+        throw error;
+      }
+
+      throw new Error("Unknown error occurred");
+    }
+  }
+
+  // HTTP Methods
+  get<T = unknown>(
+    endpoint: string,
+    options?: ApiRequestOptions,
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { ...options, method: "GET" });
+  }
+
+  post<T = unknown>(
+    endpoint: string,
+    data?: ApiRequestData,
+    options?: ApiRequestOptions,
+  ): Promise<ApiResponse<T>> {
+    // For FormData, don't set Content-Type - let browser set it with boundary
+    if (data instanceof FormData) {
+      return this.request<T>(endpoint, {
+        ...options,
+        method: "POST",
+        body: data,
+      });
+    }
+
+    return this.request<T>(endpoint, {
+      ...options,
+      method: "POST",
+      body: data ? JSON.stringify(data) : null,
+    });
+  }
+
+  put<T = unknown>(
+    endpoint: string,
+    data?: ApiRequestData,
+    options?: ApiRequestOptions,
+  ): Promise<ApiResponse<T>> {
+    if (data instanceof FormData) {
+      return this.request<T>(endpoint, {
+        ...options,
+        method: "PUT",
+        body: data,
+      });
+    }
+
+    return this.request<T>(endpoint, {
+      ...options,
+      method: "PUT",
+      body: data ? JSON.stringify(data) : null,
+    });
+  }
+
+  delete<T = unknown>(
+    endpoint: string,
+    options?: ApiRequestOptions,
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { ...options, method: "DELETE" });
+  }
+}
+
+// Create and export singleton instance
+const ApiClient = new ApiClientClass();
+
+const apiClient = {
+  get: ApiClient.get.bind(ApiClient),
+  post: ApiClient.post.bind(ApiClient),
+  put: ApiClient.put.bind(ApiClient),
+  delete: ApiClient.delete.bind(ApiClient),
+  request: ApiClient.request.bind(ApiClient),
 };
 
 export default apiClient;
 
-// Экспортируем функции для работы с токенами (для обратной совместимости)
-export {
-  getAuthTokens,
-  setAuthTokens,
-  removeAuthTokens,
-  ensureValidToken,
-  subscribeTokenRefresh,
+// Convenience API methods
+export const api = {
+  // Auth
+  login: (email: string, password: string) => {
+    return apiClient.post("/auth/login", { email, password });
+  },
+
+  register: (data: {
+    email: string;
+    password: string;
+    confirmPassword: string;
+    firstName: string;
+    lastName: string;
+  }) => {
+    return apiClient.post("/auth/register", data);
+  },
+
+  registerCosmetologist: (formData: FormData) => {
+    return apiClient.post("/auth/register/cosmetologist", formData);
+  },
+
+  logout: () => apiClient.post("/auth/logout"),
+
+  getCurrentUser: () => apiClient.get("/auth/me", { requiresAuth: true }),
+
+  forgotPassword: (email: string) => {
+    return apiClient.post(
+      `/auth/forgot-password?email=${encodeURIComponent(email)}`,
+    );
+  },
+
+  resetPassword: (token: string, password: string, confirmPassword: string) => {
+    return apiClient.post(
+      `/auth/reset-password?token=${encodeURIComponent(token)}&password=${encodeURIComponent(password)}&confirmPassword=${encodeURIComponent(confirmPassword)}`,
+    );
+  },
+
+  // Cart
+  getCart: () => apiClient.get("/cart", { requiresAuth: true }),
+
+  getCartCount: async () => {
+    if (!auth.isAuthenticated()) {
+      return { data: { count: 0 } };
+    }
+    try {
+      return await apiClient.get<{ count: number }>("/cart/count", {
+        requiresAuth: true,
+        showError: false,
+      });
+    } catch {
+      return { data: { count: 0 } };
+    }
+  },
+
+  addToCart: (productId: number, quantity = 1) => {
+    return apiClient.post(
+      "/cart",
+      { productId, quantity },
+      { requiresAuth: true },
+    );
+  },
+
+  updateCartItem: (id: number, quantity: number) => {
+    return apiClient.put(`/cart/${id}`, { quantity }, { requiresAuth: true });
+  },
+
+  removeFromCart: (id: number) => {
+    return apiClient.delete(`/cart/${id}`, { requiresAuth: true });
+  },
+
+  clearCart: () => {
+    return apiClient.delete("/cart", { requiresAuth: true });
+  },
+
+  // Wishlist
+  getWishlist: () => apiClient.get("/wishlist", { requiresAuth: true }),
+
+  getWishlistCount: async () => {
+    if (!auth.isAuthenticated()) {
+      return { data: { count: 0 } };
+    }
+    try {
+      return await apiClient.get<{ count: number }>("/wishlist/count", {
+        requiresAuth: true,
+        showError: false,
+      });
+    } catch {
+      return { data: { count: 0 } };
+    }
+  },
+
+  toggleWishlist: (productId: number) => {
+    return apiClient.put(`/wishlist/toggle/${productId}`, null, {
+      requiresAuth: true,
+    });
+  },
+
+  // Products
+  getProducts: (params?: Record<string, string>) => {
+    const searchParams = new URLSearchParams(params).toString();
+    return apiClient.get(
+      `/catalog/products${searchParams ? `?${searchParams}` : ""}`,
+    );
+  },
+
+  getProduct: (id: number) => apiClient.get(`/catalog/products/${id}`),
+
+  searchProducts: (query: string, limit = 5) => {
+    return apiClient.get(
+      `/catalog/products?search=${encodeURIComponent(query)}&size=${limit}`,
+    );
+  },
+
+  // Categories & Brands
+  getCategories: () => {
+    return apiClient.get("/catalog/categories").catch(() => ({
+      data: [],
+    }));
+  },
+
+  getBrands: () => {
+    return apiClient.get("/catalog/brands").catch(() => ({
+      data: [],
+    }));
+  },
 };
