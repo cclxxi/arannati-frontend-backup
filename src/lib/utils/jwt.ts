@@ -91,11 +91,23 @@ export function getUserFromToken(token: string): {
     }
 
     // Адаптируем под структуру вашего JWT payload от Spring Boot
+    // Извлекаем роль, учитывая что Spring Boot может добавлять префикс "ROLE_"
+    let role = payload.role || "USER";
+    
+    // Если роли нет в payload.role, проверяем authorities
+    if (!payload.role && payload.authorities && payload.authorities.length > 0) {
+      const authority = payload.authorities[0];
+      // Убираем префикс "ROLE_" если он есть
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+        role = authority.startsWith("ROLE_") ? authority.substring(5) : authority;
+    }
+    
     return {
       userId: payload.sub || payload.userId || payload.id || "",
       id: payload.sub || payload.userId || payload.id || "",
       email: payload.email || payload.username || "",
-      role: payload.role || payload.authorities?.[0] || "USER",
+      role: role,
       firstName: payload.firstName || payload.given_name,
       lastName: payload.lastName || payload.family_name,
     };
