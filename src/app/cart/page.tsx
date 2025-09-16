@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Button, Empty, InputNumber, Checkbox, Spin } from "antd";
 import { useCartStore } from "@/stores/useCartStore";
 import { withAuth } from "@/components/auth";
-import { PageHeader } from "@/components/dashboard";
+import { DashboardLayout } from "@/components/layouts";
 import { formatPrice } from "@/utils/format";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -97,12 +97,19 @@ function CartPage() {
   }
 
   return (
-    <>
-      <PageHeader
-        title="Корзина"
-        subtitle={`${totalCount} ${totalCount === 1 ? "товар" : "товаров"}`}
-        actions={
-          items.length > 0 && (
+    <DashboardLayout>
+      <div className="p-6 space-y-6">
+        {/* Actions bar */}
+        {items.length > 0 && (
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Корзина
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {totalCount} {totalCount === 1 ? "товар" : "товаров"}
+              </p>
+            </div>
             <Button
               danger
               icon={<Trash2 className="w-4 h-4" />}
@@ -110,9 +117,8 @@ function CartPage() {
             >
               Очистить корзину
             </Button>
-          )
-        }
-      />
+          </div>
+        )}
 
       {items.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-12">
@@ -334,7 +340,8 @@ function CartPage() {
           </div>
         </div>
       )}
-    </>
+      </div>
+    </DashboardLayout>
   );
 }
 

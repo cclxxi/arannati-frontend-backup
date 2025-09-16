@@ -4,12 +4,12 @@ import React, { useEffect } from "react";
 import { Heart, ShoppingCart, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { Button, Empty, Spin, Checkbox } from "antd";
+import { Button, Empty, Spin } from "antd";
 import { useWishlistStore } from "@/stores/useWishlistStore";
 import { useCartStore } from "@/stores/useCartStore";
 import type { WishlistItemDTO } from "@/types/api";
 import { withAuth } from "@/components/auth";
-import { PageHeader } from "@/components/dashboard";
+import { DashboardLayout } from "@/components/layouts";
 import { formatPrice } from "@/utils/format";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -25,7 +25,6 @@ function WishlistPage() {
   } = useWishlistStore();
   const { addItem: addToCart } = useCartStore();
 
-  const [selectedItems, setSelectedItems] = React.useState<number[]>([]);
 
   useEffect(() => {
     fetchWishlist();
@@ -33,21 +32,6 @@ function WishlistPage() {
 
   const wishlistCount = getCount();
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedItems(items.map((item: WishlistItemDTO) => item.productId));
-    } else {
-      setSelectedItems([]);
-    }
-  };
-
-  const handleSelectItem = (productId: number, checked: boolean) => {
-    if (checked) {
-      setSelectedItems((prev) => [...prev, productId]);
-    } else {
-      setSelectedItems((prev) => prev.filter((id) => id !== productId));
-    }
-  };
 
   const handleAddToCart = async (productId: number, productName: string) => {
     try {
@@ -59,34 +43,15 @@ function WishlistPage() {
     }
   };
 
-  const handleAddSelectedToCart = async () => {
-    if (selectedItems.length === 0) {
-      toast.error("Выберите товары для добавления");
-      return;
-    }
-
-    try {
-      for (const productId of selectedItems) {
-        await addToCart(productId);
-        await removeItem(productId);
-      }
-      setSelectedItems([]);
-      toast.success(`${selectedItems.length} товаров добавлено в корзину`);
-    } catch {
-      toast.error("Не удалось добавить товары в корзину");
-    }
-  };
 
   const handleRemoveItem = async (productId: number, productName: string) => {
     await removeItem(productId);
-    setSelectedItems((prev) => prev.filter((id) => id !== productId));
     toast.success(`${productName} удален из избранного`);
   };
 
   const handleClearWishlist = async () => {
     if (window.confirm("Вы уверены, что хотите очистить избранное?")) {
       await clearWishlist();
-      setSelectedItems([]);
       toast.success("Избранное очищено");
     }
   };
@@ -100,32 +65,28 @@ function WishlistPage() {
   }
 
   return (
-    <>
-      <PageHeader
-        title="Избранное"
-        subtitle={`${wishlistCount} ${wishlistCount === 1 ? "товар" : "товаров"}`}
-        actions={
-          items.length > 0 && (
-            <div className="flex gap-2">
-              <Button
-                type="primary"
-                icon={<ShoppingCart className="w-4 h-4" />}
-                onClick={handleAddSelectedToCart}
-                disabled={selectedItems.length === 0}
-              >
-                В корзину ({selectedItems.length})
-              </Button>
-              <Button
-                danger
-                icon={<Trash2 className="w-4 h-4" />}
-                onClick={handleClearWishlist}
-              >
-                Очистить
-              </Button>
+    <DashboardLayout>
+      <div className="p-6 space-y-6">
+        {/* Actions bar */}
+        {items.length > 0 && (
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Избранное
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {wishlistCount} {wishlistCount === 1 ? "товар" : "товаров"}
+              </p>
             </div>
-          )
-        }
-      />
+            <Button
+              danger
+              icon={<Trash2 className="w-4 h-4" />}
+              onClick={handleClearWishlist}
+            >
+              Очистить все
+            </Button>
+          </div>
+        )}
 
       {items.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl p-12">
@@ -151,18 +112,6 @@ function WishlistPage() {
         </div>
       ) : (
         <>
-          {/* Выбрать все */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 mb-4">
-            <Checkbox
-              checked={selectedItems.length === items.length}
-              indeterminate={
-                selectedItems.length > 0 && selectedItems.length < items.length
-              }
-              onChange={(e) => handleSelectAll(e.target.checked)}
-            >
-              Выбрать все товары
-            </Checkbox>
-          </div>
 
           {/* Сетка товаров */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -176,16 +125,6 @@ function WishlistPage() {
                   whileHover={{ y: -5 }}
                   className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
                 >
-                  {/* Чекбокс */}
-                  <div className="absolute top-3 left-3 z-10">
-                    <Checkbox
-                      checked={selectedItems.includes(item.productId)}
-                      onChange={(e) =>
-                        handleSelectItem(item.productId, e.target.checked)
-                      }
-                      className="bg-white/90 dark:bg-gray-800/90 rounded-lg p-1"
-                    />
-                  </div>
 
                   {/* Кнопка удаления */}
                   <button
@@ -200,7 +139,7 @@ function WishlistPage() {
                   {/* Изображение */}
                   <Link
                     href={`/product/${item.product?.id}`}
-                    className="block aspect-square relative"
+                    className="block aspect-[4/3] relative"
                   >
                     {item.product?.images?.[0]?.imagePath ? (
                       <Image
@@ -260,7 +199,8 @@ function WishlistPage() {
           </div>
         </>
       )}
-    </>
+      </div>
+    </DashboardLayout>
   );
 }
 
