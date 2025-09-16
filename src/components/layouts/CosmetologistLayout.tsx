@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -21,52 +21,51 @@ interface CosmetologistLayoutProps {
 
 export function CosmetologistLayout({ children }: CosmetologistLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const menuItems: MenuProps["items"] = [
     {
       key: APP_ROUTES.cosmetologist.dashboard,
       icon: <LayoutDashboard size={20} />,
       label: "Главная",
-      onClick: () =>
-        (window.location.href = APP_ROUTES.cosmetologist.dashboard),
+      onClick: () => router.push(APP_ROUTES.cosmetologist.dashboard),
     },
     {
       key: APP_ROUTES.cosmetologist.catalog,
       icon: <ShoppingCart size={20} />,
       label: "Каталог",
-      onClick: () => (window.location.href = APP_ROUTES.cosmetologist.catalog),
+      onClick: () => router.push(APP_ROUTES.cosmetologist.catalog),
     },
     {
       key: "/cosmetologist/orders",
       icon: <Package size={20} />,
       label: "Мои заказы",
-      onClick: () => (window.location.href = "/cosmetologist/orders"),
+      onClick: () => router.push("/cosmetologist/orders"),
     },
     {
       key: "/cosmetologist/statistics",
       icon: <TrendingUp size={20} />,
       label: "Статистика",
-      onClick: () => (window.location.href = "/cosmetologist/statistics"),
+      onClick: () => router.push("/cosmetologist/statistics"),
     },
     {
       key: APP_ROUTES.cosmetologist.reviews,
       icon: <Star size={20} />,
       label: "Отзывы",
-      onClick: () => (window.location.href = APP_ROUTES.cosmetologist.reviews),
+      onClick: () => router.push(APP_ROUTES.cosmetologist.reviews),
     },
     {
       key: APP_ROUTES.cosmetologist.materials,
       icon: <FileText size={20} />,
       label: "Материалы",
-      onClick: () =>
-        (window.location.href = APP_ROUTES.cosmetologist.materials),
+      onClick: () => router.push(APP_ROUTES.cosmetologist.materials),
     },
     { type: "divider" },
     {
       key: "/cosmetologist/settings",
       icon: <Settings size={20} />,
       label: "Настройки",
-      onClick: () => (window.location.href = "/cosmetologist/settings"),
+      onClick: () => router.push("/cosmetologist/settings"),
     },
   ];
 

@@ -1,18 +1,20 @@
 "use client";
 
 import React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  User,
-  ShoppingBag,
   MessageSquare,
   Heart,
   Settings,
+  ShoppingCart,
+  Package,
 } from "lucide-react";
 import type { MenuProps } from "antd";
+import { Badge } from "antd";
 import { DashboardLayoutBase } from "./DashboardLayoutBase";
 import { APP_ROUTES } from "@/constants";
+import { useCartItems, useWishlistItems } from "@/hooks";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -20,44 +22,59 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: cartItems = [] } = useCartItems();
+  const { data: wishlistItems = [] } = useWishlistItems();
+  
+  // Calculate counts from hook data like in dropdown components
+  const cartCount = Array.isArray(cartItems) ? cartItems.reduce((sum, item) => sum + item.quantity, 0) : 0;
+  const wishlistCount = Array.isArray(wishlistItems) ? wishlistItems.length : 0;
 
   const menuItems: MenuProps["items"] = [
     {
       key: APP_ROUTES.user.dashboard,
       icon: <LayoutDashboard size={20} />,
-      label: "Главная",
-      onClick: () => (window.location.href = APP_ROUTES.user.dashboard),
+      label: "Личный кабинет",
+      onClick: () => router.push(APP_ROUTES.user.dashboard),
     },
     {
-      key: APP_ROUTES.user.profile,
-      icon: <User size={20} />,
-      label: "Профиль",
-      onClick: () => (window.location.href = APP_ROUTES.user.profile),
+      key: "/cart",
+      icon: (
+        <Badge count={cartCount} size="small" offset={[10, 0]}>
+          <ShoppingCart size={20} />
+        </Badge>
+      ),
+      label: "Корзина",
+      onClick: () => router.push("/cart"),
+    },
+    {
+      key: "/wishlist",
+      icon: (
+        <Badge count={wishlistCount} size="small" offset={[10, 0]}>
+          <Heart size={20} />
+        </Badge>
+      ),
+      label: "Избранное",
+      onClick: () => router.push("/wishlist"),
     },
     {
       key: APP_ROUTES.user.orders,
-      icon: <ShoppingBag size={20} />,
+      icon: <Package size={20} />,
       label: "Мои заказы",
-      onClick: () => (window.location.href = APP_ROUTES.user.orders),
+      onClick: () => router.push(APP_ROUTES.user.orders),
     },
     {
       key: APP_ROUTES.user.messages,
       icon: <MessageSquare size={20} />,
       label: "Сообщения",
-      onClick: () => (window.location.href = APP_ROUTES.user.messages),
-    },
-    {
-      key: APP_ROUTES.user.wishlist,
-      icon: <Heart size={20} />,
-      label: "Избранное",
-      onClick: () => (window.location.href = APP_ROUTES.user.wishlist),
+      onClick: () => router.push(APP_ROUTES.user.messages),
     },
     { type: "divider" },
     {
       key: "/dashboard/settings",
       icon: <Settings size={20} />,
       label: "Настройки",
-      onClick: () => (window.location.href = "/dashboard/settings"),
+      onClick: () => router.push("/dashboard/settings"),
     },
   ];
 
@@ -65,14 +82,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     switch (pathname) {
       case APP_ROUTES.user.dashboard:
         return "Главная";
-      case APP_ROUTES.user.profile:
-        return "Мой профиль";
+      case "/cart":
+        return "Корзина";
+      case "/wishlist":
+        return "Избранное";
       case APP_ROUTES.user.orders:
         return "Мои заказы";
       case APP_ROUTES.user.messages:
         return "Сообщения";
-      case APP_ROUTES.user.wishlist:
-        return "Избранное";
       case "/dashboard/settings":
         return "Настройки";
       default:
