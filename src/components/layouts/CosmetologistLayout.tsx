@@ -10,6 +10,7 @@ import {
   Package,
   TrendingUp,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 import type { MenuProps } from "antd";
 import { DashboardLayoutBase } from "./DashboardLayoutBase";
@@ -61,6 +62,12 @@ export function CosmetologistLayout({ children }: CosmetologistLayoutProps) {
       onClick: () =>
         (window.location.href = APP_ROUTES.cosmetologist.materials),
     },
+    {
+      key: APP_ROUTES.cosmetologist.messages,
+      icon: <MessageSquare size={20} />,
+      label: "Сообщения",
+      onClick: () => (window.location.href = APP_ROUTES.cosmetologist.messages),
+    },
     { type: "divider" },
     {
       key: "/cosmetologist/settings",
@@ -84,6 +91,8 @@ export function CosmetologistLayout({ children }: CosmetologistLayoutProps) {
         return "Отзывы клиентов";
       case APP_ROUTES.cosmetologist.materials:
         return "Обучающие материалы";
+      case APP_ROUTES.cosmetologist.messages:
+        return "Сообщения";
       case "/cosmetologist/settings":
         return "Настройки";
       default:

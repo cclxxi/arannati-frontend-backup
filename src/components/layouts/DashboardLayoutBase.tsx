@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu as MenuIcon, X, Bell, ChevronDown } from "lucide-react";
 import { Button, Dropdown, Badge, Avatar } from "antd";
@@ -10,6 +10,9 @@ import { cn } from "@/utils/common";
 import { useLogout } from "@/hooks";
 import { useAuth } from "@/hooks/queries/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
+import { wsClient } from "@/lib/api/websocket-native";
+import type { MessageDTO } from "@/lib/api/websocket-native";
+import { APP_ROUTES, USER_ROLES } from "@/constants";
 
 interface DashboardLayoutBaseProps {
   children: React.ReactNode;
@@ -25,10 +28,58 @@ export function DashboardLayoutBase({
   brandColor = "primary",
 }: DashboardLayoutBaseProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
   const { logout, isLoading: isLoggingOut } = useLogout();
+
+  // WebSocket subscription for message notifications
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubMessage = wsClient.onMessage((message: MessageDTO) => {
+      // Only count messages that are support messages or direct messages to current user
+      if (
+        (message.message_type === "SUPPORT" && message.senderId !== user.id) ||
+        (message.message_type === "DIRECT" && message.recipientId === user.id)
+      ) {
+        // Only increment if not currently on messages page
+        const isOnMessagesPage =
+          pathname === APP_ROUTES.user.messages ||
+          pathname === APP_ROUTES.cosmetologist.messages;
+
+        if (!isOnMessagesPage) {
+          setUnreadCount((prev) => prev + 1);
+        }
+      }
+    });
+
+    return () => {
+      unsubMessage();
+    };
+  }, [user, pathname]);
+
+  // Clear unread count when visiting messages page
+  useEffect(() => {
+    const isOnMessagesPage =
+      pathname === APP_ROUTES.user.messages ||
+      pathname === APP_ROUTES.cosmetologist.messages;
+
+    if (isOnMessagesPage) {
+      setUnreadCount(0);
+    }
+  }, [pathname]);
+
+  // Handle bell icon click
+  const handleNotificationClick = () => {
+    if (user?.role === USER_ROLES.COSMETOLOGIST) {
+      router.push(APP_ROUTES.cosmetologist.messages);
+    } else {
+      router.push(APP_ROUTES.user.messages);
+    }
+    setUnreadCount(0);
+  };
 
   const userMenuItems: MenuProps["items"] = [
     {
@@ -153,8 +204,12 @@ export function DashboardLayoutBase({
             <div className="flex items-center gap-4">
               <ThemeToggle />
 
-              <Badge count={5} size="small">
-                <Button type="text" icon={<Bell size={20} />} />
+              <Badge count={unreadCount} size="small">
+                <Button
+                  type="text"
+                  icon={<Bell size={20} />}
+                  onClick={handleNotificationClick}
+                />
               </Badge>
 
               <Dropdown

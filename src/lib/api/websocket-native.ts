@@ -33,7 +33,7 @@ export interface MessageDTO {
   chatId: string;
   createdAt: string;
   read: boolean;
-  type: "DIRECT" | "SUPPORT" | "BROADCAST";
+  message_type: "DIRECT" | "SUPPORT" | "BROADCAST";
 }
 
 export interface TypingEvent {

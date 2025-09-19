@@ -25,13 +25,13 @@ export type ApiRequestData = Record<string, unknown> | FormData | null;
 // Auth utilities
 export const auth = {
   getTokens: () => {
-    const accessToken = Cookies.get("auth-token");
+    const accessToken = Cookies.get("accessToken");
     const refreshToken = Cookies.get("refresh-token");
     return accessToken ? { accessToken, refreshToken } : null;
   },
 
   setTokens: (accessToken: string, refreshToken?: string) => {
-    Cookies.set("auth-token", accessToken, {
+    Cookies.set("accessToken", accessToken, {
       expires: 7,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
@@ -46,17 +46,17 @@ export const auth = {
   },
 
   clearTokens: () => {
-    Cookies.remove("auth-token");
+    Cookies.remove("accessToken");
     Cookies.remove("refresh-token");
   },
 
   removeTokens: () => {
-    Cookies.remove("auth-token");
+    Cookies.remove("accessToken");
     Cookies.remove("refresh-token");
   },
 
   isAuthenticated: () => {
-    return !!Cookies.get("auth-token");
+    return !!Cookies.get("accessToken");
   },
 };
 

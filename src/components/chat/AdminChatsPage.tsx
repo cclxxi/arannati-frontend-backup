@@ -102,7 +102,7 @@ export default function AdminChatsPage() {
       }
 
       // Update support requests
-      if (message.type === "SUPPORT" && !message.recipientId) {
+      if (message.message_type === "SUPPORT" && !message.recipientId) {
         setSupportRequests((prev) => [...prev, message]);
       }
 

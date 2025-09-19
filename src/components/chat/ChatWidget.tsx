@@ -79,8 +79,8 @@ export default function ChatWidget({
 
       // Only show support messages in this widget or direct messages to/from current user
       if (
-        message.type === "SUPPORT" ||
-        (message.type === "DIRECT" &&
+        message.message_type === "SUPPORT" ||
+        (message.message_type === "DIRECT" &&
           (message.senderId === user.id || message.recipientId === user.id))
       ) {
         setMessages((prev) => {
@@ -179,7 +179,7 @@ export default function ChatWidget({
         chatId: "support",
         createdAt: new Date().toISOString(),
         read: false,
-        type: "SUPPORT",
+        message_type: "SUPPORT",
       };
 
       setMessages((prev) => [...prev, optimisticMessage]);
