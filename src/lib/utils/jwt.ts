@@ -8,6 +8,7 @@ interface JWTPayload {
   email?: string;
   username?: string;
   role?: string;
+  role_id?: number;
   authorities?: string[];
   firstName?: string;
   given_name?: string;
@@ -92,17 +93,56 @@ export function getUserFromToken(token: string): {
 
     // Адаптируем под структуру вашего JWT payload от Spring Boot
     // Извлекаем роль, учитывая что Spring Boot может добавлять префикс "ROLE_"
-    let role = payload.role || "USER";
-    
+    let role = "USER"; // Значение по умолчанию
+
+    // Debug logging для анализа структуры payload
+    console.log('[JWT DEBUG] Raw payload role data:', {
+      'payload.role_id': payload.role_id,
+      'payload.role': payload.role,
+      'payload.authorities': payload.authorities,
+      'email': payload.email || payload.username
+    });
+
+    // Сначала пробуем извлечь роль из role_id (основной способ для нашего backend)
+    if (payload.role_id) {
+      switch (payload.role_id) {
+        case 1:
+          role = "USER";
+          break;
+        case 2:
+          role = "COSMETOLOGIST";
+          break;
+        case 3:
+          role = "ADMIN";
+          break;
+        default:
+          role = "USER";
+      }
+      console.log('[JWT DEBUG] Extracted role from role_id:', { role_id: payload.role_id, mapped_role: role });
+    }
+    // Если role_id нет, пробуем payload.role
+    else if (payload.role) {
+      role = payload.role;
+      // Убираем префикс "ROLE_" если он есть от Spring Boot
+      if (role.startsWith("ROLE_")) {
+        const originalRole = role;
+        role = role.substring(5);
+        console.log('[JWT DEBUG] Removed ROLE_ prefix:', { original: originalRole, cleaned: role });
+      }
+      console.log('[JWT DEBUG] Extracted role from payload.role:', role);
+    }
     // Если роли нет в payload.role, проверяем authorities
-    if (!payload.role && payload.authorities && payload.authorities.length > 0) {
+    else if (payload.authorities && payload.authorities.length > 0) {
       const authority = payload.authorities[0];
       // Убираем префикс "ROLE_" если он есть
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
-        role = authority.startsWith("ROLE_") ? authority.substring(5) : authority;
+      const originalAuthority = authority;
+      role = authority.startsWith("ROLE_") ? authority.substring(5) : authority;
+      console.log('[JWT DEBUG] Extracted role from authorities:', { original: originalAuthority, cleaned: role });
     }
-    
+
+    // Log the final extracted role for debugging
+    console.log('[JWT DEBUG] Final extracted role:', { email: payload.email || payload.username, role });
+
     return {
       userId: payload.sub || payload.userId || payload.id || "",
       id: payload.sub || payload.userId || payload.id || "",

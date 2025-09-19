@@ -32,7 +32,20 @@ export function useAuthRedirect(options: UseAuthRedirectOptions = {}) {
         return;
       }
 
-      // Редирект по умолчанию в зависимости от роли
+      // Проверяем, находимся ли мы на странице логина после успешной аутентификации
+      // В этом случае позволяем useAuth hook обработать редирект
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+      const isFromLoginPage = currentPath.includes('/login') || 
+                               currentPath.includes('/register') ||
+                               currentPath.includes('/forgot-password') ||
+                               currentPath.includes('/reset-password');
+      
+      if (isFromLoginPage) {
+        // Даём время useAuth hook выполнить свой redirect после логина
+        return;
+      }
+
+      // Редирект по умолчанию в зависимости от роли для уже аутентифицированных пользователей
       if (redirectTo) {
         router.push(redirectTo);
       } else {

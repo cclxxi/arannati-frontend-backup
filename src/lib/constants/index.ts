@@ -146,6 +146,7 @@ export const APP_ROUTES = {
     catalog: "/cosmetologist/catalog",
     reviews: "/cosmetologist/reviews",
     materials: "/cosmetologist/materials",
+    messages: "/cosmetologist/messages",
   },
 
   // Admin

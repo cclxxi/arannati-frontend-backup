@@ -51,6 +51,38 @@ export async function middleware(request: NextRequest) {
   const token = getAuthToken(request);
   const user = token ? getUserFromToken(token) : null;
 
+  // Debug logging for admin access issues
+  if (pathname.startsWith('/admin')) {
+    console.log('[MIDDLEWARE DEBUG] Admin access attempt:', {
+      pathname,
+      hasToken: !!token,
+      tokenPreview: token ? `${token.substring(0, 50)}...` : null,
+      user: user ? {
+        userId: user.userId,
+        role: user.role,
+        email: user.email
+      } : null
+    });
+
+    // Additional JWT token debugging
+    if (token) {
+      try {
+        const { decodeJWT } = await import('@/lib/utils/jwt');
+        const payload = decodeJWT(token);
+        console.log('[MIDDLEWARE DEBUG] JWT payload:', JSON.stringify(payload, null, 2));
+        console.log('[MIDDLEWARE DEBUG] Role analysis:', {
+          'payload.role': payload?.role,
+          'payload.authorities': payload?.authorities,
+          'payload.auth': payload?.["auth"],
+          'payload.scope': payload?.["scope"],
+          'payload.roles': payload?.["roles"]
+        });
+      } catch (error) {
+        console.error('[MIDDLEWARE DEBUG] Error decoding token:', error);
+      }
+    }
+  }
+
   // Добавляем pathname в заголовки для серверных компонентов
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", pathname);
@@ -96,8 +128,22 @@ export async function middleware(request: NextRequest) {
   // Проверяем защищенные роуты
   for (const [route, allowedRoles] of Object.entries(protectedRoutes)) {
     if (pathStartsWith(pathname, route)) {
+      // Debug logging for protected route matching
+      if (pathname.startsWith('/admin')) {
+        console.log('[MIDDLEWARE DEBUG] Protected route match:', {
+          pathname,
+          matchedRoute: route,
+          allowedRoles,
+          hasUser: !!user,
+          userRole: user?.role
+        });
+      }
+
       // Если нет токена, редирект на login
       if (!user) {
+        if (pathname.startsWith('/admin')) {
+          console.log('[MIDDLEWARE DEBUG] No user found, redirecting to login');
+        }
         const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set("callbackUrl", pathname);
         return NextResponse.redirect(loginUrl);
@@ -105,10 +151,20 @@ export async function middleware(request: NextRequest) {
 
       // Проверяем роль
       if (!allowedRoles.includes(user.role)) {
+        if (pathname.startsWith('/admin')) {
+          console.log('[MIDDLEWARE DEBUG] Role check failed:', {
+            userRole: user.role,
+            allowedRoles,
+            includes: allowedRoles.includes(user.role)
+          });
+        }
         return NextResponse.redirect(new URL("/403", request.url));
       }
 
       // Все проверки пройдены
+      if (pathname.startsWith('/admin')) {
+        console.log('[MIDDLEWARE DEBUG] All checks passed, allowing access');
+      }
       return NextResponse.next({
         request: {
           headers: requestHeaders,
