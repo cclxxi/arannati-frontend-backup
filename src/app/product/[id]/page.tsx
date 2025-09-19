@@ -4,16 +4,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { 
-  Heart, 
-  ShoppingCart, 
-  Plus, 
-  Minus, 
+import {
+  Heart,
+  ShoppingCart,
+  Plus,
+  Minus,
   ArrowLeft,
   Share2,
   Truck,
   Shield,
-  RotateCcw
+  RotateCcw,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -29,13 +29,21 @@ import Header from "@/components/common/Header";
 import ProductCardInteractive from "@/components/catalog/ProductCardInteractive";
 import AuthRequiredModal from "@/components/common/AuthRequiredModal";
 
-
 // Компонент для галереи изображений товара
-const ProductImageGallery = ({ images, productName }: { images: ProductImageDTO[], productName: string }) => {
+const ProductImageGallery = ({
+  images,
+  productName,
+}: {
+  images: ProductImageDTO[];
+  productName: string;
+}) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  const currentImage = images?.[selectedImageIndex] || { imagePath: "/placeholder-product.png", altText: productName };
+  const currentImage = images?.[selectedImageIndex] || {
+    imagePath: "/placeholder-product.png",
+    altText: productName,
+  };
 
   return (
     <div className="space-y-4">
@@ -82,11 +90,19 @@ const ProductImageGallery = ({ images, productName }: { images: ProductImageDTO[
 };
 
 // Компонент для отображения отзывов
-const ProductReviews = ({ reviews, averageRating }: { reviews: ReviewDTO[], averageRating?: number }) => {
+const ProductReviews = ({
+  reviews,
+  averageRating,
+}: {
+  reviews: ReviewDTO[];
+  averageRating?: number;
+}) => {
   if (!reviews || reviews.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-500 dark:text-gray-400">Пока нет отзывов о товаре</p>
+        <p className="text-gray-500 dark:text-gray-400">
+          Пока нет отзывов о товаре
+        </p>
       </div>
     );
   }
@@ -95,11 +111,21 @@ const ProductReviews = ({ reviews, averageRating }: { reviews: ReviewDTO[], aver
     <div className="space-y-6">
       {/* Общий рейтинг */}
       <div className="flex items-center gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="text-3xl font-bold">{averageRating?.toFixed(1) || "0.0"}</div>
+        <div className="text-3xl font-bold">
+          {averageRating?.toFixed(1) || "0.0"}
+        </div>
         <div>
-          <Rate disabled value={averageRating} allowHalf className="text-yellow-400" />
+          <Rate
+            disabled
+            value={averageRating}
+            allowHalf
+            className="text-yellow-400"
+          />
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            На основе {reviews.length} отзыв{reviews.length % 10 === 1 && reviews.length % 100 !== 11 ? 'а' : 'ов'}
+            На основе {reviews.length} отзыв
+            {reviews.length % 10 === 1 && reviews.length % 100 !== 11
+              ? "а"
+              : "ов"}
           </p>
         </div>
       </div>
@@ -107,7 +133,10 @@ const ProductReviews = ({ reviews, averageRating }: { reviews: ReviewDTO[], aver
       {/* Список отзывов */}
       <div className="space-y-4">
         {reviews.map((review) => (
-          <div key={review.id} className="border-b border-gray-100 dark:border-gray-800 pb-4">
+          <div
+            key={review.id}
+            className="border-b border-gray-100 dark:border-gray-800 pb-4"
+          >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="font-medium">
@@ -120,12 +149,18 @@ const ProductReviews = ({ reviews, averageRating }: { reviews: ReviewDTO[], aver
                 )}
               </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {new Date(review.createdAt).toLocaleDateString('ru-RU')}
+                {new Date(review.createdAt).toLocaleDateString("ru-RU")}
               </span>
             </div>
-            <Rate disabled value={review.rating} className="text-yellow-400 mb-2" />
+            <Rate
+              disabled
+              value={review.rating}
+              className="text-yellow-400 mb-2"
+            />
             {review.comment && (
-              <p className="text-gray-700 dark:text-gray-300">{review.comment}</p>
+              <p className="text-gray-700 dark:text-gray-300">
+                {review.comment}
+              </p>
             )}
           </div>
         ))}
@@ -136,8 +171,8 @@ const ProductReviews = ({ reviews, averageRating }: { reviews: ReviewDTO[], aver
 
 export default function ProductPage() {
   const params = useParams();
-  const productId = parseInt(params['id'] as string);
-  
+  const productId = parseInt(params["id"] as string);
+
   const [quantity, setQuantity] = useState(1);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
@@ -147,15 +182,19 @@ export default function ProductPage() {
   const wishlistStore = useWishlistStore();
 
   // Получение данных товара
-  const { data: product, isLoading, error } = useQuery<ProductDTO>({
-    queryKey: ['product', productId],
+  const {
+    data: product,
+    isLoading,
+    error,
+  } = useQuery<ProductDTO>({
+    queryKey: ["product", productId],
     queryFn: () => catalogApi.getProductDetails(productId),
     enabled: !isNaN(productId),
   });
 
   // Получение похожих товаров
   const { data: similarProducts = [] } = useQuery<ProductDTO[]>({
-    queryKey: ['similarProducts', productId],
+    queryKey: ["similarProducts", productId],
     queryFn: () => catalogApi.getSimilarProducts(productId, 4),
     enabled: !isNaN(productId),
   });
@@ -215,7 +254,7 @@ export default function ProductPage() {
       message.success(
         isNowInWishlist
           ? "Товар добавлен в избранное"
-          : "Товар удален из избранного"
+          : "Товар удален из избранного",
       );
     } catch {
       message.error("Не удалось изменить избранное");
@@ -255,13 +294,21 @@ export default function ProductPage() {
     );
   }
 
-  const discount = product.oldPrice && product.price
-    ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
-    : product.salePrice && product.regularPrice
-    ? Math.round(((product.regularPrice - product.salePrice) / product.regularPrice) * 100)
-    : 0;
+  const discount =
+    product.oldPrice && product.price
+      ? Math.round(
+          ((product.oldPrice - product.price) / product.oldPrice) * 100,
+        )
+      : product.salePrice && product.regularPrice
+        ? Math.round(
+            ((product.regularPrice - product.salePrice) /
+              product.regularPrice) *
+              100,
+          )
+        : 0;
 
-  const displayPrice = product.price || product.salePrice || product.regularPrice || 0;
+  const displayPrice =
+    product.price || product.salePrice || product.regularPrice || 0;
   const originalPrice = product.oldPrice || product.regularPrice || 0;
 
   return (
@@ -270,24 +317,24 @@ export default function ProductPage() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20">
         <div className="container mx-auto px-4 py-8">
           {/* Хлебные крошки */}
-          <Breadcrumb 
+          <Breadcrumb
             className="mb-6"
             items={[
               {
-                title: <Link href="/">Главная</Link>
+                title: <Link href="/">Главная</Link>,
               },
               {
-                title: <Link href="/catalog">Каталог</Link>
+                title: <Link href="/catalog">Каталог</Link>,
               },
               {
-                title: product.name
-              }
+                title: product.name,
+              },
             ]}
           />
 
           {/* Кнопка назад */}
-          <Link 
-            href="/catalog" 
+          <Link
+            href="/catalog"
             className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-mint transition-colors mb-6"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -298,7 +345,10 @@ export default function ProductPage() {
             <div className="grid lg:grid-cols-2 gap-8 p-8">
               {/* Левая колонка - изображения */}
               <div>
-                <ProductImageGallery images={product.images} productName={product.name} />
+                <ProductImageGallery
+                  images={product.images}
+                  productName={product.name}
+                />
               </div>
 
               {/* Правая колонка - информация о товаре */}
@@ -321,9 +371,15 @@ export default function ProductPage() {
                 {/* Рейтинг */}
                 {product.averageRating && (
                   <div className="flex items-center gap-2">
-                    <Rate disabled value={product.averageRating} allowHalf className="text-yellow-400" />
+                    <Rate
+                      disabled
+                      value={product.averageRating}
+                      allowHalf
+                      className="text-yellow-400"
+                    />
                     <span className="text-gray-600 dark:text-gray-400">
-                      ({product.reviewCount || 0} отзыв{(product.reviewCount || 0) % 10 === 1 ? '' : 'ов'})
+                      ({product.reviewCount || 0} отзыв
+                      {(product.reviewCount || 0) % 10 === 1 ? "" : "ов"})
                     </span>
                   </div>
                 )}
@@ -361,9 +417,13 @@ export default function ProductPage() {
 
                 {/* Наличие */}
                 <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${product.stockQuantity > 0 ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <div
+                    className={`w-3 h-3 rounded-full ${product.stockQuantity > 0 ? "bg-green-500" : "bg-red-500"}`}
+                  />
                   <span className="text-sm">
-                    {product.stockQuantity > 0 ? `В наличии (${product.stockQuantity} шт.)` : 'Нет в наличии'}
+                    {product.stockQuantity > 0
+                      ? `В наличии (${product.stockQuantity} шт.)`
+                      : "Нет в наличии"}
                   </span>
                 </div>
 
@@ -373,17 +433,27 @@ export default function ProductPage() {
                     {!isInCart ? (
                       <>
                         <div className="flex items-center gap-4">
-                          <span className="text-sm font-medium">Количество:</span>
+                          <span className="text-sm font-medium">
+                            Количество:
+                          </span>
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                              onClick={() =>
+                                setQuantity(Math.max(1, quantity - 1))
+                              }
                               className="w-8 h-8 rounded-full border border-gray-300 hover:border-mint flex items-center justify-center transition-colors"
                             >
                               <Minus className="w-4 h-4" />
                             </button>
-                            <span className="w-12 text-center font-medium">{quantity}</span>
+                            <span className="w-12 text-center font-medium">
+                              {quantity}
+                            </span>
                             <button
-                              onClick={() => setQuantity(Math.min(product.stockQuantity, quantity + 1))}
+                              onClick={() =>
+                                setQuantity(
+                                  Math.min(product.stockQuantity, quantity + 1),
+                                )
+                              }
                               className="w-8 h-8 rounded-full border border-gray-300 hover:border-mint flex items-center justify-center transition-colors"
                             >
                               <Plus className="w-4 h-4" />
@@ -401,7 +471,9 @@ export default function ProductPage() {
                     ) : (
                       <div className="space-y-4">
                         <div className="flex items-center gap-4 bg-mint/10 dark:bg-mint/20 rounded-full px-4 py-2">
-                          <span className="text-sm font-medium">В корзине:</span>
+                          <span className="text-sm font-medium">
+                            В корзине:
+                          </span>
                           <button
                             onClick={() => handleUpdateCartQuantity(-1)}
                             className="w-8 h-8 rounded-full bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center justify-center transition-colors"
@@ -433,10 +505,12 @@ export default function ProductPage() {
                         : "border-gray-300 dark:border-gray-600 hover:border-mint"
                     }`}
                   >
-                    <Heart className={`w-5 h-5 ${isInWishlist ? "fill-red-500" : ""}`} />
+                    <Heart
+                      className={`w-5 h-5 ${isInWishlist ? "fill-red-500" : ""}`}
+                    />
                     {isInWishlist ? "В избранном" : "В избранное"}
                   </button>
-                  
+
                   <button className="flex items-center gap-2 px-6 py-3 rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-mint transition-colors">
                     <Share2 className="w-5 h-5" />
                     Поделиться
@@ -463,8 +537,8 @@ export default function ProductPage() {
 
             {/* Табы с детальной информацией */}
             <div className="px-8 pb-8">
-              <Tabs 
-                defaultActiveKey="description" 
+              <Tabs
+                defaultActiveKey="description"
                 size="large"
                 items={[
                   {
@@ -473,35 +547,60 @@ export default function ProductPage() {
                     children: (
                       <div className="prose prose-gray dark:prose-invert max-w-none">
                         {product.description ? (
-                          <div dangerouslySetInnerHTML={{ __html: product.description }} />
+                          <div
+                            dangerouslySetInnerHTML={{
+                              __html: product.description,
+                            }}
+                          />
                         ) : (
                           <p>Описание товара будет добавлено позже.</p>
                         )}
                       </div>
-                    )
+                    ),
                   },
-                  ...(product.ingredients ? [{
-                    key: "ingredients",
-                    label: "Состав",
-                    children: (
-                      <div className="prose prose-gray dark:prose-invert max-w-none">
-                        <div dangerouslySetInnerHTML={{ __html: product.ingredients }} />
-                      </div>
-                    )
-                  }] : []),
-                  ...(product.usageInstructions ? [{
-                    key: "usage",
-                    label: "Применение",
-                    children: (
-                      <div className="prose prose-gray dark:prose-invert max-w-none">
-                        <div dangerouslySetInnerHTML={{ __html: product.usageInstructions }} />
-                      </div>
-                    )
-                  }] : []),
+                  ...(product.ingredients
+                    ? [
+                        {
+                          key: "ingredients",
+                          label: "Состав",
+                          children: (
+                            <div className="prose prose-gray dark:prose-invert max-w-none">
+                              <div
+                                dangerouslySetInnerHTML={{
+                                  __html: product.ingredients,
+                                }}
+                              />
+                            </div>
+                          ),
+                        },
+                      ]
+                    : []),
+                  ...(product.usageInstructions
+                    ? [
+                        {
+                          key: "usage",
+                          label: "Применение",
+                          children: (
+                            <div className="prose prose-gray dark:prose-invert max-w-none">
+                              <div
+                                dangerouslySetInnerHTML={{
+                                  __html: product.usageInstructions,
+                                }}
+                              />
+                            </div>
+                          ),
+                        },
+                      ]
+                    : []),
                   {
                     key: "reviews",
                     label: `Отзывы (${product.reviewCount || 0})`,
-                    children: <ProductReviews reviews={product.reviews} averageRating={product.averageRating} />
+                    children: (
+                      <ProductReviews
+                        reviews={product.reviews}
+                        averageRating={product.averageRating}
+                      />
+                    ),
                   },
                   {
                     key: "specs",
@@ -511,30 +610,38 @@ export default function ProductPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <dt className="font-medium">Артикул</dt>
-                            <dd className="text-gray-600 dark:text-gray-400">{product.sku}</dd>
+                            <dd className="text-gray-600 dark:text-gray-400">
+                              {product.sku}
+                            </dd>
                           </div>
                           {product.weight && (
                             <div className="space-y-2">
                               <dt className="font-medium">Вес</dt>
-                              <dd className="text-gray-600 dark:text-gray-400">{product.weight} г</dd>
+                              <dd className="text-gray-600 dark:text-gray-400">
+                                {product.weight} г
+                              </dd>
                             </div>
                           )}
                           {product.dimensions && (
                             <div className="space-y-2">
                               <dt className="font-medium">Размеры</dt>
-                              <dd className="text-gray-600 dark:text-gray-400">{product.dimensions}</dd>
+                              <dd className="text-gray-600 dark:text-gray-400">
+                                {product.dimensions}
+                              </dd>
                             </div>
                           )}
                           {product.manufacturerCode && (
                             <div className="space-y-2">
                               <dt className="font-medium">Код производителя</dt>
-                              <dd className="text-gray-600 dark:text-gray-400">{product.manufacturerCode}</dd>
+                              <dd className="text-gray-600 dark:text-gray-400">
+                                {product.manufacturerCode}
+                              </dd>
                             </div>
                           )}
                         </div>
                       </div>
-                    )
-                  }
+                    ),
+                  },
                 ]}
               />
             </div>
