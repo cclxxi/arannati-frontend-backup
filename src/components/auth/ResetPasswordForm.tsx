@@ -28,6 +28,9 @@ export function ResetPasswordForm() {
     formState: { errors },
   } = useForm<ResetPasswordInput>({
     resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      token: token || "",
+    },
   });
 
   // Handle success and error states
@@ -72,10 +75,7 @@ export function ResetPasswordForm() {
       return;
     }
 
-    resetPasswordMutation.mutate({
-      token,
-      ...data,
-    });
+    resetPasswordMutation.mutate(data);
   };
 
   if (!token) {

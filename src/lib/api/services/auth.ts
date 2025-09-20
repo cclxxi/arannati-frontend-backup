@@ -1,5 +1,8 @@
-import apiClient, { auth } from "@/lib/api/client";
-import { API_ROUTES } from "@/constants";
+// src/lib/api/services/auth.ts
+import apiClient from "@/lib/api/client";
+import { API_ROUTES } from "@/lib/constants";
+import { getCleanToken } from "@/lib/utils/jwt";
+import Cookies from "js-cookie";
 import type {
   LoginInput,
   RegisterInput,
@@ -11,17 +14,14 @@ import type { UserDTO } from "@/types/api";
 
 // Типы ответов
 interface LoginResponse {
-  user: UserDTO;
+  user: UserDTO & {
+    role?: string;
+    role_id?: number;
+  };
   accessToken?: string;
   refreshToken?: string;
   token?: string;
   message?: string;
-  data?: {
-    user?: UserDTO;
-    token?: string;
-    accessToken?: string;
-    refreshToken?: string;
-  };
 }
 
 interface RegisterResponse {
@@ -38,63 +38,70 @@ interface MessageResponse {
 export const authApi = {
   // Вход в систему
   login: async (data: LoginInput): Promise<LoginResponse> => {
-    const response = await apiClient.post<LoginResponse>(
-      API_ROUTES.auth.login,
-      data,
-    );
+    try {
+      console.log("[Auth] Login attempt for:", data.email);
 
-    console.log("Login response:", response.data);
+      const response = await apiClient.post<LoginResponse>(
+        API_ROUTES.auth.login,
+        data,
+      );
 
-    // Spring Boot возвращает данные в другом формате
-    // Проверяем разные варианты ответа
-    const responseData = response.data;
+      console.log("[Auth] Raw login response:", response.data);
 
-    // Извлекаем токены из разных возможных мест
-    let accessToken =
-      responseData.accessToken ||
-      responseData.token ||
-      responseData.data?.token ||
-      responseData.data?.accessToken;
+      const responseData = response.data;
 
-    const refreshToken =
-      responseData.refreshToken || responseData.data?.refreshToken;
+      // Извлекаем токены из разных возможных мест
+      let accessToken = responseData.accessToken || responseData.token;
+      const refreshToken = responseData.refreshToken;
 
-    // Извлекаем пользователя
-    const user =
-      responseData.user || responseData.data?.user || responseData.data;
-
-    // Если токен в заголовке Authorization
-    if (!accessToken && responseData.message?.includes("Bearer")) {
-      const match = responseData.message.match(/Bearer\s+(\S+)/);
-      if (match) {
-        accessToken = match[1];
+      // Если токен с префиксом Bearer, сохраняем чистый токен
+      if (accessToken) {
+        accessToken = getCleanToken(accessToken);
+        console.log("[Auth] Extracted clean token");
       }
+
+      // Извлекаем пользователя с ролью
+      const user = responseData.user;
+
+      // Логируем информацию о роли для отладки
+      console.log("[Auth] User role info:", {
+        role: user?.role,
+        role_id: user?.role_id,
+        email: user?.email,
+      });
+
+      // Сохраняем токены в cookies
+      if (accessToken) {
+        Cookies.set("accessToken", accessToken, {
+          expires: 7,
+          secure: true,
+          sameSite: "strict",
+        });
+        console.log("[Auth] Access token saved to cookies");
+      }
+
+      if (refreshToken) {
+        Cookies.set("refreshToken", refreshToken, {
+          expires: 30,
+          secure: true,
+          sameSite: "strict",
+        });
+        console.log("[Auth] Refresh token saved to cookies");
+      }
+
+      return {
+        user,
+        accessToken,
+        refreshToken,
+        message: responseData.message,
+      };
+    } catch (error: unknown) {
+      console.error("[Auth] Login error:", error);
+      throw error;
     }
-
-    // Если токен уже с префиксом Bearer, убираем его
-    if (accessToken?.startsWith("Bearer ")) {
-      accessToken = accessToken.substring(7);
-    }
-
-    if (!accessToken) {
-      console.error("No access token in response:", responseData);
-      throw new Error("No access token received");
-    }
-
-    console.log("Extracted tokens:", { accessToken, refreshToken });
-
-    // Сохраняем токены
-    auth.setTokens(accessToken, refreshToken);
-
-    // Формируем правильный ответ
-    return {
-      user,
-      accessToken,
-      refreshToken,
-    };
   },
 
-  // Регистрация обычного пользователя
+  // Регистрация
   register: async (data: RegisterInput): Promise<RegisterResponse> => {
     const response = await apiClient.post<RegisterResponse>(
       API_ROUTES.auth.register,
@@ -106,21 +113,18 @@ export const authApi = {
   // Регистрация косметолога
   registerCosmetologist: async (
     data: CosmetologistRegisterInput,
+    diplomaFile?: File,
+    certificateFile?: File,
   ): Promise<RegisterResponse> => {
     const formData = new FormData();
+    formData.append("data", JSON.stringify(data));
 
-    // Extract the diploma file and confirmPassword
-    const { diplomaFile, ...registrationData } = data;
-
-    // Add the JSON data as a Blob with a proper content type for the 'data' part
-    const jsonBlob = new Blob([JSON.stringify(registrationData)], {
-      type: "application/json",
-    });
-    formData.append("data", jsonBlob);
-
-    // Add the diploma file as the 'diplomaFile' part
     if (diplomaFile) {
-      formData.append("diplomaFile", diplomaFile);
+      formData.append("diploma", diplomaFile);
+    }
+
+    if (certificateFile) {
+      formData.append("certificate", certificateFile);
     }
 
     const response = await apiClient.post<RegisterResponse>(
@@ -128,59 +132,108 @@ export const authApi = {
       formData,
       {
         headers: {
-          // Don't set Content-Type manually - let the browser set it with boundary
+          "Content-Type": "multipart/form-data",
         },
       },
     );
     return response.data;
   },
 
-  // Выход из системы
-  logout: async (): Promise<void> => {
-    try {
-      await apiClient.post<void>(API_ROUTES.auth.logout);
-    } finally {
-      // Удаляем токены в любом случае
-      auth.removeTokens();
-      window.location.href = "/login";
-    }
-  },
-
-  // Получение текущего пользователя
-  getMe: async (): Promise<UserDTO> => {
-    const response = await apiClient.get<UserDTO>(API_ROUTES.auth.me, {
-      requiresAuth: true,
-    });
-    return response.data;
-  },
-
-  // Запрос на восстановление пароля
+  // Восстановление пароля
   forgotPassword: async (
     data: ForgotPasswordInput,
   ): Promise<MessageResponse> => {
     const response = await apiClient.post<MessageResponse>(
       API_ROUTES.auth.forgotPassword,
       null,
-      { params: data },
+      {
+        params: { email: data.email },
+      },
     );
     return response.data;
   },
 
   // Сброс пароля
-  resetPassword: async (
-    token: string,
-    data: ResetPasswordInput,
-  ): Promise<MessageResponse> => {
+  resetPassword: async (data: ResetPasswordInput): Promise<MessageResponse> => {
     const response = await apiClient.post<MessageResponse>(
       API_ROUTES.auth.resetPassword,
       null,
       {
         params: {
-          token,
-          ...data,
+          token: data.token,
+          newPassword: data.password,
         },
       },
     );
+    return response.data;
+  },
+
+  // Получение текущего пользователя
+  getMe: async (): Promise<UserDTO & { role?: string; role_id?: number }> => {
+    try {
+      console.log("[Auth] Getting current user info");
+
+      const response = await apiClient.get<{
+        user: UserDTO & { role?: string; role_id?: number };
+      }>(API_ROUTES.auth.me);
+
+      const user = response.data.user;
+
+      console.log("[Auth] Current user info:", {
+        id: user?.id,
+        email: user?.email,
+        role: user?.role,
+        role_id: user?.role_id,
+      });
+
+      return user;
+    } catch (error) {
+      console.error("[Auth] Failed to get current user:", error);
+      throw error;
+    }
+  },
+
+  // Выход из системы
+  logout: async (): Promise<void> => {
+    try {
+      await apiClient.post(API_ROUTES.auth.logout);
+    } catch (error) {
+      console.error("[Auth] Logout error:", error);
+      // Игнорируем ошибки при логауте
+    } finally {
+      // Всегда очищаем токены
+      Cookies.remove("accessToken");
+      Cookies.remove("auth-token");
+      Cookies.remove("refreshToken");
+      console.log("[Auth] Tokens cleared");
+    }
+  },
+
+  // Обновление токена
+  refreshToken: async (): Promise<{ accessToken: string }> => {
+    const refreshToken = Cookies.get("refreshToken");
+
+    if (!refreshToken) {
+      throw new Error("No refresh token available");
+    }
+
+    const response = await apiClient.post<{ accessToken: string }>(
+      API_ROUTES.auth.refresh,
+      { refreshToken },
+    );
+
+    const { accessToken } = response.data;
+
+    // Сохраняем новый токен
+    if (accessToken) {
+      const cleanToken = getCleanToken(accessToken);
+      Cookies.set("accessToken", cleanToken, {
+        expires: 7,
+        secure: true,
+        sameSite: "strict",
+      });
+    }
+
     return response.data;
   },
 };
