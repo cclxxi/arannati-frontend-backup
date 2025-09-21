@@ -1,18 +1,21 @@
-import type { Metadata } from "next";
-import { AdminLayout } from "@/components/layouts/AdminLayout";
+// src/app/admin/layout.tsx
+"use client";
+
 import React from "react";
+import { App, ConfigProvider } from "antd";
+import ruRU from "antd/locale/ru_RU";
+import { AdminLayout } from "@/components/layouts/AdminLayout";
 
-export const metadata: Metadata = {
-  title: {
-    template: "%s | Админ панель | Arannati",
-    default: "Админ панель",
-  },
-};
-
-export default function AdminRoutesLayout({
+export default function AdminRootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AdminLayout>{children}</AdminLayout>;
+  return (
+    <ConfigProvider locale={ruRU}>
+      <App>
+        <AdminLayout>{children}</AdminLayout>
+      </App>
+    </ConfigProvider>
+  );
 }

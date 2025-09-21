@@ -70,7 +70,7 @@ export default function AdminChatsPage() {
     queryKey: ["admin-chats"],
     queryFn: async () => {
       const response = await apiClient.get<{ chats: Chat[] }>(
-        "/api/messages/chats",
+        "/messages/chats",
       );
       return response.data.chats || [];
     },
@@ -83,7 +83,7 @@ export default function AdminChatsPage() {
     queryFn: async () => {
       if (!selectedChat) return [] as MessageDTO[];
       const response = await apiClient.get<MessageDTO[]>(
-        `/api/messages/chat/${selectedChat.id}`,
+        `/messages/chat/${selectedChat.id}`,
       );
       return response.data || [];
     },

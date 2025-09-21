@@ -35,10 +35,28 @@ export const adminApi = {
 
   // ===== ПОЛЬЗОВАТЕЛИ =====
   getUsers: async (page = 0, size = 20): Promise<UserDTO[]> => {
-    const response = await apiClient.get<UserDTO[]>(API_ROUTES.admin.users, {
+    const response = await apiClient.get<unknown>(API_ROUTES.admin.users, {
       params: { page, size },
     });
-    return response.data;
+
+    // Универсальная нормализация: поддерживаем массив и pageable-формат
+    const data = response.data as
+      | UserDTO[]
+      | { content?: UserDTO[]; items?: UserDTO[]; data?: UserDTO[] };
+
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.content)) return data.content!;
+    if (Array.isArray(data?.items)) return data.items!;
+    if (
+      typeof data === "object" &&
+      data !== null &&
+      "data" in data &&
+      Array.isArray(data.data)
+    ) {
+      return data.data as UserDTO[];
+    }
+
+    return [];
   },
 
   toggleUserActive: async (userId: number): Promise<void> => {
@@ -53,10 +71,43 @@ export const adminApi = {
 
   // ===== КОСМЕТОЛОГИ =====
   getPendingCosmetologists: async (): Promise<UserDTO[]> => {
-    const response = await apiClient.get<UserDTO[]>(
-      `${API_ROUTES.admin.cosmetologists}?status=pending`,
-    );
-    return response.data;
+    try {
+      // Пробуем специальный endpoint для pending косметологов (без лишнего /api)
+      const response = await apiClient.get<UserDTO[]>(
+        "/admin/cosmetologists/pending",
+      );
+      return response.data;
+    } catch {
+      // Если спец. эндпоинта нет — fallback
+      const all = await adminApi.getUsers(0, 1000);
+      return all.filter((u) => u.role === "COSMETOLOGIST" && !u.verified);
+    }
+  },
+
+  getAllCosmetologists: async (): Promise<{
+    pending: UserDTO[];
+    approved: UserDTO[];
+    declined: UserDTO[];
+  }> => {
+    try {
+      // Подтянем побольше, чтобы не упереться в пагинацию
+      const users = await adminApi.getUsers(0, 1000);
+
+      const pending = users.filter(
+        (u) => u.role === "COSMETOLOGIST" && !u.verified && u.active !== false,
+      );
+      const approved = users.filter(
+        (u) => u.role === "COSMETOLOGIST" && u.verified === true,
+      );
+      const declined = users.filter(
+        (u) => u.role === "COSMETOLOGIST" && u.active === false && !u.verified,
+      );
+
+      return { pending, approved, declined };
+    } catch (error) {
+      console.error("Error getting cosmetologists:", error);
+      return { pending: [], approved: [], declined: [] };
+    }
   },
 
   approveCosmetologist: async (id: number): Promise<void> => {
@@ -82,20 +133,78 @@ export const adminApi = {
       brands: BrandDTO[];
     }
   > => {
-    // Filter out undefined values to prevent them from being sent as "undefined" strings
-    const filteredParams = params
-      ? Object.fromEntries(
-          Object.entries(params).filter(([value]) => value !== undefined),
-        )
-      : undefined;
+    // Преобразуем параметры в правильные типы
+    const queryParams: Record<string, string | number | undefined> = {};
+    if (params) {
+      if (params.page !== undefined) queryParams["page"] = Number(params.page);
+      if (params.size !== undefined) queryParams["size"] = Number(params.size);
+      if (params.search) queryParams["search"] = params.search;
+      if (params.categoryId !== undefined)
+        queryParams["categoryId"] = Number(params.categoryId);
+      if (params.brandId !== undefined)
+        queryParams["brandId"] = Number(params.brandId);
+    }
 
-    const response = await apiClient.get<
-      PaginatedResponse<ProductDTO> & {
-        categories: CategoryDTO[];
-        brands: BrandDTO[];
+    // Filter out undefined values for API client compatibility
+    const cleanParams: Record<string, string | number | boolean> = {};
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (value !== undefined) {
+        cleanParams[key] = value;
       }
-    >(API_ROUTES.admin.products, { params: filteredParams });
-    return response.data;
+    });
+
+    // 1) Товары (поддержка pageable и массива)
+    const productsResp = await apiClient.get<unknown>(
+      API_ROUTES.admin.products,
+      {
+        params: cleanParams,
+      },
+    );
+
+    const raw = productsResp.data as Record<string, unknown> | ProductDTO[];
+    const content: ProductDTO[] = Array.isArray(raw)
+      ? raw
+      : (((raw as Record<string, unknown>)["content"] as ProductDTO[]) ??
+        ((raw as Record<string, unknown>)["items"] as ProductDTO[]) ??
+        ((raw as Record<string, unknown>)["data"] as ProductDTO[]) ??
+        []);
+
+    const totalItems = !Array.isArray(raw)
+      ? (((raw as Record<string, unknown>)["totalElements"] as number) ??
+        ((raw as Record<string, unknown>)["totalItems"] as number) ??
+        content.length)
+      : content.length;
+    const totalPages = !Array.isArray(raw)
+      ? (((raw as Record<string, unknown>)["totalPages"] as number) ??
+        (typeof totalItems === "number" && params?.size
+          ? Math.ceil(totalItems / Number(params.size))
+          : 1))
+      : 1;
+    const currentPage = !Array.isArray(raw)
+      ? (((raw as Record<string, unknown>)["number"] as number) ??
+        ((raw as Record<string, unknown>)["currentPage"] as number) ??
+        params?.page ??
+        0)
+      : (params?.page ?? 0);
+
+    // 2) Категории и бренды — отдельными вызовами (на случай если бэк не возвращает их вместе)
+    const [categoriesResp, brandsResp] = await Promise.all([
+      apiClient
+        .get<CategoryDTO[]>("/categories")
+        .catch(() => ({ data: [] as CategoryDTO[] })),
+      apiClient
+        .get<BrandDTO[]>("/brands")
+        .catch(() => ({ data: [] as BrandDTO[] })),
+    ]);
+
+    return {
+      content,
+      currentPage,
+      totalItems,
+      totalPages,
+      categories: categoriesResp.data || [],
+      brands: brandsResp.data || [],
+    };
   },
 
   getProduct: async (id: number): Promise<ProductDTO> => {
@@ -159,7 +268,7 @@ export const adminApi = {
 
   // ===== КАТЕГОРИИ =====
   getCategories: async (): Promise<CategoryDTO[]> => {
-    const response = await apiClient.get<CategoryDTO[]>("/api/categories");
+    const response = await apiClient.get<CategoryDTO[]>("/categories");
     return response.data;
   },
 
@@ -167,7 +276,7 @@ export const adminApi = {
     category: Partial<CategoryDTO>,
   ): Promise<CategoryDTO> => {
     const response = await apiClient.post<CategoryDTO>(
-      "/api/admin/categories",
+      "/admin/categories",
       category,
     );
     return response.data;
@@ -178,24 +287,24 @@ export const adminApi = {
     category: Partial<CategoryDTO>,
   ): Promise<CategoryDTO> => {
     const response = await apiClient.put<CategoryDTO>(
-      `/api/admin/categories/${id}`,
+      `/admin/categories/${id}`,
       category,
     );
     return response.data;
   },
 
   deleteCategory: async (id: number): Promise<void> => {
-    await apiClient.delete(`/api/admin/categories/${id}`);
+    await apiClient.delete(`/admin/categories/${id}`);
   },
 
   // ===== БРЕНДЫ =====
   getBrands: async (): Promise<BrandDTO[]> => {
-    const response = await apiClient.get<BrandDTO[]>("/api/brands");
+    const response = await apiClient.get<BrandDTO[]>("/brands");
     return response.data;
   },
 
   createBrand: async (brand: Partial<BrandDTO>): Promise<BrandDTO> => {
-    const response = await apiClient.post<BrandDTO>("/api/admin/brands", brand);
+    const response = await apiClient.post<BrandDTO>("/admin/brands", brand);
     return response.data;
   },
 
@@ -204,14 +313,14 @@ export const adminApi = {
     brand: Partial<BrandDTO>,
   ): Promise<BrandDTO> => {
     const response = await apiClient.put<BrandDTO>(
-      `/api/admin/brands/${id}`,
+      `/admin/brands/${id}`,
       brand,
     );
     return response.data;
   },
 
   deleteBrand: async (id: number): Promise<void> => {
-    await apiClient.delete(`/api/admin/brands/${id}`);
+    await apiClient.delete(`/admin/brands/${id}`);
   },
 
   // ===== ЗАКАЗЫ =====
@@ -270,7 +379,7 @@ export const adminApi = {
     formData.append("title", title);
     formData.append("description", description);
 
-    await apiClient.post(API_ROUTES.admin.materials, formData, {
+    await apiClient.post("/admin/materials", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -296,11 +405,11 @@ export const adminApi = {
         fileSize: number;
         uploadDate: string;
       }>
-    >(API_ROUTES.admin.materials);
+    >("/admin/materials");
     return response.data;
   },
 
   deleteMaterial: async (id: number): Promise<void> => {
-    await apiClient.delete(API_ROUTES.admin.material(id));
+    await apiClient.delete(`/admin/materials/${id}`);
   },
 };

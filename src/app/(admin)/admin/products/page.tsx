@@ -34,6 +34,7 @@ import type { ProductDTO, CategoryDTO, BrandDTO } from "@/types/api";
 import type { ColumnsType } from "antd/es/table";
 import type { UploadFile } from "antd/es/upload/interface";
 import { formatPrice } from "@/utils/format";
+import { AdminApiTest } from "@/components/admin/AdminApiTest";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -65,25 +66,33 @@ export default function ProductManagementPage() {
       const response = await adminApi.getProducts({
         page: pagination.current - 1,
         size: pagination.pageSize,
-        search: searchText || undefined,
+        search:
+          searchText && searchText.trim() !== ""
+            ? searchText.trim()
+            : undefined,
         categoryId: selectedCategory,
         brandId: selectedBrand,
       });
 
-      setProducts(response.content);
-      setCategories(response.categories);
-      setBrands(response.brands);
-      setPagination((prev) => ({
-        ...prev,
-        total: response.totalItems,
-      }));
+      console.log("Products response:", response);
+
+      setProducts(response.content || []);
+      setCategories(response.categories || []);
+      setBrands(response.brands || []);
+
+      if (response.totalItems !== undefined) {
+        setPagination((prev) => ({
+          ...prev,
+          total: response.totalItems,
+        }));
+      }
     } catch (error) {
       console.error("Error fetching products:", error);
       message.error("Не удалось загрузить товары");
     } finally {
       setLoading(false);
     }
-  }, [pagination, searchText, selectedCategory, selectedBrand]);
+  }, [searchText, selectedCategory, selectedBrand, pagination]);
 
   useEffect(() => {
     fetchProducts();
@@ -91,12 +100,9 @@ export default function ProductManagementPage() {
 
   const handleAddProduct = () => {
     setEditingProduct(null);
+    form.resetFields();
     setFileList([]);
     setModalVisible(true);
-    // Reset form after modal is shown to ensure Form component is mounted
-    setTimeout(() => {
-      form.resetFields();
-    }, 0);
   };
 
   const handleEditProduct = async (product: ProductDTO) => {
@@ -172,11 +178,11 @@ export default function ProductManagementPage() {
       key: "image",
       width: 80,
       render: (images: Array<{ imagePath: string }>) =>
-        images && images.length > 0 && images[0] ? (
+        images && images.length > 0 ? (
           <Image
             width={60}
             height={60}
-            src={images[0].imagePath}
+            src={images[0]?.imagePath}
             alt="Product"
             style={{ objectFit: "cover" }}
             fallback="/images/product-placeholder.jpg"
@@ -307,6 +313,7 @@ export default function ProductManagementPage() {
 
   return (
     <div className="p-6">
+      <AdminApiTest />
       <Card>
         <div className="mb-6 flex justify-between items-center">
           <div>
@@ -344,7 +351,7 @@ export default function ProductManagementPage() {
               onChange={setSelectedCategory}
               allowClear
             >
-              {(categories || []).map((cat) => (
+              {categories.map((cat) => (
                 <Option key={cat.id} value={cat.id}>
                   {cat.name}
                 </Option>
@@ -359,7 +366,7 @@ export default function ProductManagementPage() {
               onChange={setSelectedBrand}
               allowClear
             >
-              {(brands || []).map((brand) => (
+              {brands.map((brand) => (
                 <Option key={brand.id} value={brand.id}>
                   {brand.name}
                 </Option>
@@ -428,7 +435,7 @@ export default function ProductManagementPage() {
                 rules={[{ required: true, message: "Выберите категорию" }]}
               >
                 <Select placeholder="Выберите категорию">
-                  {(categories || []).map((cat) => (
+                  {categories.map((cat) => (
                     <Option key={cat.id} value={cat.id}>
                       {cat.name}
                     </Option>
@@ -443,7 +450,7 @@ export default function ProductManagementPage() {
                 rules={[{ required: true, message: "Выберите бренд" }]}
               >
                 <Select placeholder="Выберите бренд">
-                  {(brands || []).map((brand) => (
+                  {brands.map((brand) => (
                     <Option key={brand.id} value={brand.id}>
                       {brand.name}
                     </Option>
@@ -482,11 +489,9 @@ export default function ProductManagementPage() {
                   formatter={(value) =>
                     `₸ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                   }
-                  parser={(value) => {
-                    const parsed = value?.replace(/\₸\s?|(,*)/g, "") || "";
-                    const num = parseFloat(parsed);
-                    return (isNaN(num) ? 0 : num) as 0;
-                  }}
+                  parser={(value) =>
+                    Number(value?.replace(/\₸\s?|(,*)/g, "") || 0) as 0
+                  }
                 />
               </Form.Item>
             </Col>
@@ -502,11 +507,9 @@ export default function ProductManagementPage() {
                   formatter={(value) =>
                     `₸ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                   }
-                  parser={(value) => {
-                    const parsed = value?.replace(/\₸\s?|(,*)/g, "") || "";
-                    const num = parseFloat(parsed);
-                    return (isNaN(num) ? 0 : num) as 0;
-                  }}
+                  parser={(value) =>
+                    Number(value?.replace(/\₸\s?|(,*)/g, "") || 0) as 0
+                  }
                 />
               </Form.Item>
             </Col>
@@ -519,11 +522,9 @@ export default function ProductManagementPage() {
                   formatter={(value) =>
                     `₸ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                   }
-                  parser={(value) => {
-                    const parsed = value?.replace(/\₸\s?|(,*)/g, "") || "";
-                    const num = parseFloat(parsed);
-                    return (isNaN(num) ? 0 : num) as 0;
-                  }}
+                  parser={(value) =>
+                    Number(value?.replace(/\₸\s?|(,*)/g, "") || 0) as 0
+                  }
                 />
               </Form.Item>
             </Col>

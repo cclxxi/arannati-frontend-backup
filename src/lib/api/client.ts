@@ -284,6 +284,40 @@ class ApiClientClass {
   ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { ...options, method: "DELETE" });
   }
+
+  // Специальный метод для GET запросов с правильной обработкой параметров
+  public async getWithParams<T = unknown>(
+    endpoint: string,
+    params?: Record<string, string | number | boolean | undefined>,
+  ): Promise<ApiResponse<T>> {
+    // Фильтруем undefined значения и преобразуем в строки
+    const cleanParams: Record<string, string> = {};
+
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          // Преобразуем все значения в строки для URL
+          cleanParams[key] = String(value);
+        }
+      });
+    }
+
+    // Логируем для отладки
+    if (endpoint.includes("admin")) {
+      console.log("[API Debug] Request:", {
+        endpoint,
+        originalParams: params,
+        cleanParams,
+        fullUrl: `${this.baseURL}${endpoint}`,
+      });
+    }
+
+    return this.request<T>(endpoint, {
+      method: "GET",
+      params: cleanParams,
+      requiresAuth: true,
+    });
+  }
 }
 
 // Create and export singleton instance

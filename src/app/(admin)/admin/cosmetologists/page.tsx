@@ -1,7 +1,7 @@
 // src/app/admin/cosmetologists/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   Button,
@@ -12,13 +12,11 @@ import {
   Card,
   Avatar,
   Tooltip,
+  message,
   Spin,
   Empty,
   Tabs,
-  App,
 } from "antd";
-
-const { TabPane } = Tabs;
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -35,8 +33,6 @@ import dayjs from "dayjs";
 const { TextArea } = Input;
 
 export default function CosmetologistApprovalPage() {
-  const { message } = App.useApp();
-
   const [pendingCosmetologists, setPendingCosmetologists] = useState<UserDTO[]>(
     [],
   );
@@ -53,41 +49,31 @@ export default function CosmetologistApprovalPage() {
   const [declineReason, setDeclineReason] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
 
-  const fetchCosmetologists = useCallback(async () => {
+  useEffect(() => {
+    fetchCosmetologists();
+  }, []);
+
+  const fetchCosmetologists = async () => {
     setLoading(true);
     try {
-      // Получаем всех пользователей и фильтруем косметологов
-      const response = await adminApi.getUsers(0, 100);
+      const result = await adminApi.getAllCosmetologists();
 
-      // Handle both direct array and paginated response structures
-      const users = Array.isArray(response)
-        ? response
-        : (response as { content?: UserDTO[] })?.content || [];
+      setPendingCosmetologists(result.pending);
+      setApprovedCosmetologists(result.approved);
+      setDeclinedCosmetologists(result.declined);
 
-      const pending = users.filter(
-        (u: UserDTO) => u.role === "COSMETOLOGIST" && !u.verified,
-      );
-      const approved = users.filter(
-        (u: UserDTO) => u.role === "COSMETOLOGIST" && u.verified && u.active,
-      );
-      const declined = users.filter(
-        (u: UserDTO) => u.role === "COSMETOLOGIST" && !u.active && !u.verified,
-      );
-
-      setPendingCosmetologists(pending);
-      setApprovedCosmetologists(approved);
-      setDeclinedCosmetologists(declined);
+      console.log("Fetched cosmetologists:", {
+        pending: result.pending.length,
+        approved: result.approved.length,
+        declined: result.declined.length,
+      });
     } catch (error) {
       console.error("Error fetching cosmetologists:", error);
       message.error("Не удалось загрузить список косметологов");
     } finally {
       setLoading(false);
     }
-  }, [message]);
-
-  useEffect(() => {
-    fetchCosmetologists();
-  }, [fetchCosmetologists]);
+  };
 
   const handleApprove = async (cosmetologist: UserDTO) => {
     Modal.confirm({
@@ -252,89 +238,92 @@ export default function CosmetologistApprovalPage() {
           </p>
         </div>
 
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane
-            tab={
-              <span>
-                Ожидают проверки
-                {pendingCosmetologists.length > 0 && (
-                  <Tag color="warning" className="ml-2">
-                    {pendingCosmetologists.length}
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={setActiveTab}
+          items={[
+            {
+              key: "pending",
+              label: (
+                <span>
+                  Ожидают проверки
+                  {pendingCosmetologists.length > 0 && (
+                    <Tag color="warning" className="ml-2">
+                      {pendingCosmetologists.length}
+                    </Tag>
+                  )}
+                </span>
+              ),
+              children: loading ? (
+                <div className="text-center py-8">
+                  <Spin size="large" />
+                </div>
+              ) : pendingCosmetologists.length === 0 ? (
+                <Empty
+                  description="Нет заявок, ожидающих проверки"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+              ) : (
+                <Table
+                  columns={columns}
+                  dataSource={pendingCosmetologists}
+                  rowKey="id"
+                  pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Всего: ${total}`,
+                  }}
+                />
+              ),
+            },
+            {
+              key: "approved",
+              label: (
+                <span>
+                  Одобренные
+                  <Tag color="success" className="ml-2">
+                    {approvedCosmetologists.length}
                   </Tag>
-                )}
-              </span>
-            }
-            key="pending"
-          >
-            {loading ? (
-              <div className="text-center py-8">
-                <Spin size="large" />
-              </div>
-            ) : pendingCosmetologists.length === 0 ? (
-              <Empty
-                description="Нет заявок, ожидающих проверки"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            ) : (
-              <Table
-                columns={columns}
-                dataSource={pendingCosmetologists}
-                rowKey="id"
-                pagination={{
-                  pageSize: 10,
-                  showSizeChanger: true,
-                  showTotal: (total) => `Всего: ${total}`,
-                }}
-              />
-            )}
-          </TabPane>
-
-          <TabPane
-            tab={
-              <span>
-                Одобренные
-                <Tag color="success" className="ml-2">
-                  {approvedCosmetologists.length}
-                </Tag>
-              </span>
-            }
-            key="approved"
-          >
-            <Table
-              columns={columns}
-              dataSource={approvedCosmetologists}
-              rowKey="id"
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showTotal: (total) => `Всего: ${total}`,
-              }}
-            />
-          </TabPane>
-
-          <TabPane
-            tab={
-              <span>
-                Отклоненные
-                <Tag color="error" className="ml-2">
-                  {declinedCosmetologists.length}
-                </Tag>
-              </span>
-            }
-            key="declined"
-          >
-            <Table
-              columns={columns}
-              dataSource={declinedCosmetologists}
-              rowKey="id"
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showTotal: (total) => `Всего: ${total}`,
-              }}
-            />
-          </TabPane>
-        </Tabs>
+                </span>
+              ),
+              children: (
+                <Table
+                  columns={columns}
+                  dataSource={approvedCosmetologists}
+                  rowKey="id"
+                  pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Всего: ${total}`,
+                  }}
+                />
+              ),
+            },
+            {
+              key: "declined",
+              label: (
+                <span>
+                  Отклоненные
+                  <Tag color="error" className="ml-2">
+                    {declinedCosmetologists.length}
+                  </Tag>
+                </span>
+              ),
+              children: (
+                <Table
+                  columns={columns}
+                  dataSource={declinedCosmetologists}
+                  rowKey="id"
+                  pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Всего: ${total}`,
+                  }}
+                />
+              ),
+            },
+          ]}
+        />
       </Card>
 
       {/* Модальное окно для отклонения заявки */}

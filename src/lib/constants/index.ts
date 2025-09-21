@@ -102,8 +102,8 @@ export const API_ROUTES = {
     cosmetologists: "/admin/cosmetologists",
     approveCosmetologist: (id: number) => `/admin/cosmetologists/${id}/approve`,
     declineCosmetologist: (id: number) => `/admin/cosmetologists/${id}/decline`,
-    materials: "/api/admin/materials",
-    material: (id: number) => `/api/admin/materials/${id}`,
+    materials: "/admin/materials",
+    material: (id: number) => `/admin/materials/${id}`,
   },
 
   // Materials
