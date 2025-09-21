@@ -22,31 +22,24 @@ export function useAuth() {
       // Проверяем наличие токена
       const token = Cookies.get("accessToken") || Cookies.get("auth-token");
       if (!token) {
-        console.log("[useAuth] No token found");
-        return null;
+        return null; // Возвращаем null вместо undefined
       }
 
       try {
-        console.log("[useAuth] Fetching current user");
         const response = await authApi.getMe();
-        console.log("[useAuth] User data received:", {
-          id: response?.id,
-          email: response?.email,
-          role: response?.role,
-          role_id: response?.role_id,
-        });
-        return response;
-      } catch (error) {
-        console.error("[useAuth] Failed to fetch user:", error);
+        return response || null; // Гарантируем что не вернется undefined
+      } catch {
         // Если токен невалидный, очищаем его
         Cookies.remove("accessToken");
         Cookies.remove("auth-token");
         Cookies.remove("refreshToken");
-        return null;
+        return null; // Возвращаем null вместо undefined
       }
     },
     staleTime: 5 * 60 * 1000, // 5 минут
     retry: false,
+    // ВАЖНОЕ ИЗМЕНЕНИЕ: обрабатываем undefined
+    select: (data) => data ?? null, // Преобразуем undefined в null
   });
 
   // Логин
@@ -56,61 +49,38 @@ export function useAuth() {
       console.log("[useAuth] Login successful:", {
         email: data.user?.email,
         role: data.user?.role,
-        role_id: data.user?.role_id,
       });
 
       // Обновляем данные пользователя в кэше
-      queryClient.setQueryData(queryKeys.auth.user(), data.user);
+      queryClient.setQueryData(queryKeys.auth.user(), data.user || null);
 
       // Определяем URL для редиректа на основе роли
-      let redirectUrl = "/dashboard"; // По умолчанию
+      let redirectUrl = "/dashboard";
 
       const userRole = data.user?.role;
-      console.log("[useAuth] Determining redirect for role:", userRole);
 
-      // Проверяем роль и выполняем соответствующий редирект
       switch (userRole) {
         case USER_ROLES.ADMIN:
         case "ADMIN":
           redirectUrl = APP_ROUTES.admin.dashboard;
-          console.log("[useAuth] Admin detected, redirecting to:", redirectUrl);
           break;
 
         case USER_ROLES.COSMETOLOGIST:
         case "COSMETOLOGIST":
           redirectUrl = APP_ROUTES.cosmetologist.dashboard;
-          console.log(
-            "[useAuth] Cosmetologist detected, redirecting to:",
-            redirectUrl,
-          );
           break;
 
         case USER_ROLES.USER:
         case "USER":
           redirectUrl = APP_ROUTES.user.dashboard;
-          console.log(
-            "[useAuth] Regular user detected, redirecting to:",
-            redirectUrl,
-          );
           break;
-
-        default:
-          console.warn(
-            "[useAuth] Unknown role:",
-            userRole,
-            "- redirecting to default dashboard",
-          );
-          redirectUrl = APP_ROUTES.user.dashboard;
       }
 
-      // Показываем уведомление об успешном входе
       toast.success(
         `Добро пожаловать, ${data.user?.firstName || data.user?.email}!`,
       );
 
-      // Небольшая задержка перед редиректом для лучшего UX
       setTimeout(() => {
-        console.log("[useAuth] Performing redirect to:", redirectUrl);
         router.push(redirectUrl);
       }, 100);
     },
@@ -128,17 +98,13 @@ export function useAuth() {
   // Логаут
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      console.log("[useAuth] Logging out");
       try {
         await authApi.logout();
-      } catch (error) {
-        console.error("[useAuth] Logout API error:", error);
+      } catch {
         // Игнорируем ошибки при логауте
       }
     },
     onSettled: () => {
-      console.log("[useAuth] Clearing auth data");
-
       // Очищаем токены
       Cookies.remove("accessToken");
       Cookies.remove("auth-token");
@@ -147,11 +113,7 @@ export function useAuth() {
       // Очищаем кэш
       queryClient.clear();
 
-      // Показываем уведомление
       toast.success("Вы успешно вышли из системы");
-
-      // Перенаправляем на главную
-      console.log("[useAuth] Redirecting to home");
       router.push("/");
     },
   });
@@ -169,7 +131,7 @@ export function useAuth() {
   };
 
   return {
-    user,
+    user: user ?? null, // Гарантируем null вместо undefined
     isLoading,
     isAuthenticated: !!user,
     error,
@@ -179,7 +141,6 @@ export function useAuth() {
     isLoggingOut: logoutMutation.isPending,
     hasRole,
     hasAnyRole,
-    // Для обратной совместимости
     role: user?.role,
     isAdmin: hasRole(USER_ROLES.ADMIN),
     isCosmetologist: hasRole(USER_ROLES.COSMETOLOGIST),
