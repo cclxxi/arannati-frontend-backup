@@ -34,6 +34,12 @@ export function DashboardLayoutBase({
   const { user } = useAuth();
   const { logout, isLoading: isLoggingOut } = useLogout();
 
+  // Добавляем флаг монтирования, чтобы избежать SSR/CSR расхождений
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // WebSocket subscription for message notifications
   useEffect(() => {
     if (!user) return;
@@ -152,7 +158,7 @@ export function DashboardLayoutBase({
           <nav className="flex-1 overflow-y-auto px-4 py-6">
             <Menu
               mode="inline"
-              selectedKeys={[pathname]}
+              selectedKeys={mounted ? [pathname] : []}
               items={menuItems}
               className="border-none bg-transparent"
               style={{
@@ -163,20 +169,30 @@ export function DashboardLayoutBase({
 
           {/* User info */}
           <div className="border-t border-border/50 p-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3" suppressHydrationWarning>
               <Avatar
                 size={40}
                 className={`bg-${brandColor} text-white font-semibold`}
               >
-                {user?.firstName?.charAt(0)}
-                {user?.lastName?.charAt(0)}
+                {mounted ? (
+                  <>
+                    {user?.firstName?.charAt(0)}
+                    {user?.lastName?.charAt(0)}
+                  </>
+                ) : null}
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-text-primary truncate">
-                  {user?.firstName} {user?.lastName}
+                  {mounted ? (
+                    <>
+                      {user?.firstName} {user?.lastName}
+                    </>
+                  ) : (
+                    "\u00A0"
+                  )}
                 </p>
                 <p className="text-xs text-text-secondary truncate">
-                  {user?.email}
+                  {mounted ? user?.email : "\u00A0"}
                 </p>
               </div>
             </div>
@@ -217,9 +233,13 @@ export function DashboardLayoutBase({
                 placement="bottomRight"
                 trigger={["click"]}
               >
-                <Button type="text" className="flex items-center gap-2 px-3">
+                <Button
+                  type="text"
+                  className="flex items-center gap-2 px-3"
+                  suppressHydrationWarning
+                >
                   <Avatar size={32} className={`bg-${brandColor} text-white`}>
-                    {user?.firstName?.charAt(0)}
+                    {mounted ? user?.firstName?.charAt(0) : null}
                   </Avatar>
                   <ChevronDown size={16} />
                 </Button>

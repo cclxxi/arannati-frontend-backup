@@ -12,7 +12,7 @@ import {
   Card,
   Avatar,
   Tooltip,
-  message,
+  App,
   Spin,
   Empty,
   Tabs,
@@ -33,6 +33,7 @@ import dayjs from "dayjs";
 const { TextArea } = Input;
 
 export default function CosmetologistApprovalPage() {
+  const { message } = App.useApp();
   const [pendingCosmetologists, setPendingCosmetologists] = useState<UserDTO[]>(
     [],
   );
@@ -238,8 +239,8 @@ export default function CosmetologistApprovalPage() {
           </p>
         </div>
 
-        <Tabs 
-          activeKey={activeTab} 
+        <Tabs
+          activeKey={activeTab}
           onChange={setActiveTab}
           items={[
             {
