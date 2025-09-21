@@ -9,7 +9,6 @@ import {
   Star,
 } from "lucide-react";
 import { withAuth } from "@/components/auth";
-import { PageHeader } from "@/components/dashboard";
 import { Card, Button, EmptyState } from "@/components/ui";
 import { CosmetologistStatsCards } from "@/components/cosmetologist/CosmetologistStatsCards";
 import { USER_ROLES, APP_ROUTES } from "@/constants";
@@ -56,52 +55,51 @@ const quickLinks = [
 
 function CosmetologistDashboard() {
   return (
-    <>
-      <PageHeader
-        title="Панель косметолога"
-        subtitle="Управляйте вашей профессиональной деятельностью"
-      />
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Панель косметолога</h1>
 
-      <div className="space-y-6">
-        {/* Статистика */}
+      {/* Статистика */}
+      <div className="mb-8">
         <CosmetologistStatsCards stats={mockStats} />
+      </div>
 
-        {/* Быстрые ссылки */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Быстрый доступ
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickLinks.map((link) => {
-              const Icon = link.icon;
+      {/* Быстрые ссылки */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Быстрый доступ
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {quickLinks.map((link) => {
+            const Icon = link.icon;
 
-              return (
-                <Link key={link.href} href={link.href}>
-                  <Card interactive className="h-full">
-                    <div className="flex flex-col items-center text-center">
-                      <div
-                        className={cn(
-                          "w-16 h-16 rounded-lg flex items-center justify-center text-white mb-4",
-                          link.color,
-                        )}
-                      >
-                        <Icon size={32} />
-                      </div>
-                      <h3 className="font-medium text-gray-900 dark:text-white mb-2">
-                        {link.title}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {link.description}
-                      </p>
+            return (
+              <Link key={link.href} href={link.href}>
+                <Card interactive className="h-full">
+                  <div className="flex flex-col items-center text-center">
+                    <div
+                      className={cn(
+                        "w-16 h-16 rounded-lg flex items-center justify-center text-white mb-4",
+                        link.color,
+                      )}
+                    >
+                      <Icon size={32} />
                     </div>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
+                    <h3 className="font-medium text-gray-900 dark:text-white mb-2">
+                      {link.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {link.description}
+                    </p>
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
+      </div>
 
-        {/* Важные уведомления */}
+      {/* Важные уведомления */}
+      <div className="mb-8">
         <Card
           title="Важная информация"
           className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20"
@@ -130,25 +128,25 @@ function CosmetologistDashboard() {
             </li>
           </ul>
         </Card>
-
-        {/* Последние отзывы */}
-        <Card
-          title="Последние отзывы клиентов"
-          extra={
-            <Link href={APP_ROUTES.cosmetologist.reviews}>
-              <Button type="link">Все отзывы</Button>
-            </Link>
-          }
-        >
-          <EmptyState
-            type="custom"
-            icon={<Star size={48} />}
-            title="Отзывов пока нет"
-            description="Здесь будут отображаться отзывы ваших клиентов"
-          />
-        </Card>
       </div>
-    </>
+
+      {/* Последние отзывы */}
+      <Card
+        title="Последние отзывы клиентов"
+        extra={
+          <Link href={APP_ROUTES.cosmetologist.reviews}>
+            <Button type="link">Все отзывы</Button>
+          </Link>
+        }
+      >
+        <EmptyState
+          type="custom"
+          icon={<Star size={48} />}
+          title="Отзывов пока нет"
+          description="Здесь будут отображаться отзывы ваших клиентов"
+        />
+      </Card>
+    </div>
   );
 }
 
