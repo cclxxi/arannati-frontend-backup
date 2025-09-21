@@ -1,7 +1,7 @@
 // src/app/admin/cosmetologists/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Table,
   Button,
@@ -50,11 +50,7 @@ export default function CosmetologistApprovalPage() {
   const [declineReason, setDeclineReason] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
 
-  useEffect(() => {
-    fetchCosmetologists();
-  }, []);
-
-  const fetchCosmetologists = async () => {
+  const fetchCosmetologists = useCallback(async () => {
     setLoading(true);
     try {
       const result = await adminApi.getAllCosmetologists();
@@ -74,7 +70,11 @@ export default function CosmetologistApprovalPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [message]);
+
+  useEffect(() => {
+    fetchCosmetologists();
+  }, [fetchCosmetologists]);
 
   const handleApprove = async (cosmetologist: UserDTO) => {
     Modal.confirm({

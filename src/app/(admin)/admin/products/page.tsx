@@ -1,7 +1,7 @@
 // src/app/admin/products/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Table,
   Button,
@@ -35,6 +35,7 @@ import type { ColumnsType } from "antd/es/table";
 import type { UploadFile } from "antd/es/upload/interface";
 import { formatPrice } from "@/utils/format";
 import { AdminApiTest } from "@/components/admin/AdminApiTest";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -58,47 +59,124 @@ export default function ProductManagementPage() {
     total: 0,
   });
 
+  const debouncedSearch = useDebounce(searchText.trim(), 400);
   const [form] = Form.useForm();
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await adminApi.getProducts({
-        page: pagination.current - 1,
+    // Хелперы мемоизации/блокировок запросов
+    const lastQueryKeyRef = useRef<string>("");
+    const inFlightKeyRef = useRef<string>("");
+    const lastCallTimeRef = useRef<number>(0);
+    const MIN_INTERVAL_MS = 500;
+
+    const getCurrentQueryArgs = () => ({
+        page: pagination.current,
         size: pagination.pageSize,
-        search:
-          searchText && searchText.trim() !== ""
-            ? searchText.trim()
-            : undefined,
+        search: debouncedSearch || undefined,
         categoryId: selectedCategory,
         brandId: selectedBrand,
-      });
+    });
 
-      console.log("Products response:", response);
+    const makeQueryKey = (args: {
+        page: number;
+        size: number;
+        search?: string;
+        categoryId?: number;
+        brandId?: number;
+    }) =>
+        JSON.stringify({
+            page: args.page,
+            size: args.size,
+            search: args.search || "",
+            categoryId: args.categoryId ?? null,
+            brandId: args.brandId ?? null,
+        });
 
-      setProducts(response.content || []);
-      setCategories(response.categories || []);
-      setBrands(response.brands || []);
+    // Стабильная функция запроса
+    const fetchProducts = useCallback(
+        async (args: {
+            page: number;
+            size: number;
+            search?: string;
+            categoryId?: number;
+            brandId?: number;
+        }) => {
+            const key = makeQueryKey(args);
 
-      if (response.totalItems !== undefined) {
-        setPagination((prev) => ({
-          ...prev,
-          total: response.totalItems,
-        }));
-      }
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      message.error("Не удалось загрузить товары");
-    } finally {
-      setLoading(false);
-    }
-  }, [searchText, selectedCategory, selectedBrand, pagination]);
+            // Throttle: не чаще, чем раз в MIN_INTERVAL_MS для одного и того же набора параметров
+            const now = Date.now();
+            if (lastQueryKeyRef.current === key && now - lastCallTimeRef.current < MIN_INTERVAL_MS) {
+                return;
+            }
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+            // Если уже идёт запрос с такими же параметрами — пропускаем
+            if (inFlightKeyRef.current === key) {
+                return;
+            }
 
-  const handleAddProduct = () => {
+            inFlightKeyRef.current = key;
+            lastCallTimeRef.current = now;
+
+            setLoading(true);
+            try {
+                const response = await adminApi.getProducts({
+                    page: args.page - 1,
+                    size: args.size,
+                    search: args.search || undefined,
+                    categoryId: args.categoryId,
+                    brandId: args.brandId,
+                });
+
+                setProducts(response.content || []);
+                setCategories(response.categories || []);
+                setBrands(response.brands || []);
+
+                if (typeof response.totalItems === "number") {
+                    setPagination((prev) =>
+                        prev.total !== response.totalItems
+                            ? { ...prev, total: response.totalItems }
+                            : prev,
+                    );
+                }
+
+                // Фиксируем последний успешно загруженный ключ
+                lastQueryKeyRef.current = key;
+            } catch (error) {
+                console.error("Error fetching products:", error);
+                message.error("Не удалось загрузить товары");
+            } finally {
+                inFlightKeyRef.current = "";
+                setLoading(false);
+            }
+        },
+        [],
+    );
+
+    // Триггер загрузки при изменении параметров
+    useEffect(() => {
+        const args = getCurrentQueryArgs();
+        void fetchProducts(args);
+    }, [
+        pagination.current,
+        pagination.pageSize,
+        debouncedSearch,
+        selectedCategory,
+        selectedBrand,
+        fetchProducts,
+    ]);
+
+    // Обработчики фильтров: сбрасываем страницу на 1
+    const onChangeCategory = (value?: number) => {
+        setSelectedCategory(value);
+        setPagination((prev) => ({ ...prev, current: 1 }));
+    };
+
+    const onChangeBrand = (value?: number) => {
+        setSelectedBrand(value);
+        setPagination((prev) => ({ ...prev, current: 1 }));
+    };
+
+
+    const handleAddProduct = () => {
     setEditingProduct(null);
     form.resetFields();
     setFileList([]);
@@ -112,22 +190,23 @@ export default function ProductManagementPage() {
       categoryId: product.categoryId,
       brandId: product.brandId,
     });
-    setFileList([]); // Загрузить существующие изображения если нужно
+    setFileList([]);
     setModalVisible(true);
   };
 
-  const handleDeleteProduct = async (id: number) => {
-    try {
-      await adminApi.deleteProduct(id);
-      message.success("Товар успешно удален");
-      fetchProducts();
-    } catch (error) {
-      console.error("Error deleting product:", error);
-      message.error("Не удалось удалить товар");
-    }
-  };
+    const handleDeleteProduct = async (id: number) => {
+        try {
+            await adminApi.deleteProduct(id);
+            message.success("Товар успешно удален");
+            await fetchProducts(getCurrentQueryArgs());
+        } catch (error) {
+            console.error("Error deleting product:", error);
+            message.error("Не удалось удалить товар");
+        }
+    };
 
-  const handleSubmit = async (values: Partial<ProductDTO>) => {
+
+    const handleSubmit = async (values: Partial<ProductDTO>) => {
     try {
       // Подготавливаем данные
       const productData = {
@@ -164,7 +243,7 @@ export default function ProductManagementPage() {
       }
 
       setModalVisible(false);
-      fetchProducts();
+      await fetchProducts(getCurrentQueryArgs());
     } catch (error) {
       console.error("Error saving product:", error);
       message.error("Не удалось сохранить товар");
@@ -295,7 +374,7 @@ export default function ProductManagementPage() {
         message.error("Можно загружать только изображения!");
         return false;
       }
-      return false; // Предотвращаем автоматическую загрузку
+      return false;
     },
     fileList,
     onChange: ({ fileList }: { fileList: UploadFile[] }) => {
@@ -348,7 +427,7 @@ export default function ProductManagementPage() {
               placeholder="Выберите категорию"
               style={{ width: "100%" }}
               value={selectedCategory}
-              onChange={setSelectedCategory}
+              onChange={onChangeCategory}
               allowClear
             >
               {categories.map((cat) => (
@@ -363,7 +442,7 @@ export default function ProductManagementPage() {
               placeholder="Выберите бренд"
               style={{ width: "100%" }}
               value={selectedBrand}
-              onChange={setSelectedBrand}
+              onChange={onChangeBrand}
               allowClear
             >
               {brands.map((brand) => (

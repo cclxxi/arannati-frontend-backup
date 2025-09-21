@@ -121,19 +121,19 @@ export const adminApi = {
   },
 
   // ===== ТОВАРЫ =====
-  getProducts: async (params?: {
-    page?: number;
-    size?: number;
-    search?: string;
-    categoryId?: number;
-    brandId?: number;
-  }): Promise<
-    PaginatedResponse<ProductDTO> & {
-      categories: CategoryDTO[];
-      brands: BrandDTO[];
+    getProducts: async (params?: {
+        page?: number;
+        size?: number;
+        search?: string;
+        categoryId?: number;
+        brandId?: number;
+    }): Promise<
+        PaginatedResponse<ProductDTO> & {
+        categories: CategoryDTO[];
+        brands: BrandDTO[];
     }
-  > => {
-    // Преобразуем параметры в правильные типы
+    > => {
+        // Преобразуем параметры в правильные типы
     const queryParams: Record<string, string | number | undefined> = {};
     if (params) {
       if (params.page !== undefined) queryParams["page"] = Number(params.page);
@@ -154,60 +154,106 @@ export const adminApi = {
     });
 
     // 1) Товары (поддержка pageable и массива)
-    const productsResp = await apiClient.get<unknown>(
-      API_ROUTES.admin.products,
-      {
-        params: cleanParams,
-      },
-    );
+        const productsResp = await apiClient.get<unknown>(
+            API_ROUTES.admin.products,
+            {
+                params: cleanParams,
+            },
+        );
 
-    const raw = productsResp.data as Record<string, unknown> | ProductDTO[];
-    const content: ProductDTO[] = Array.isArray(raw)
-      ? raw
-      : (((raw as Record<string, unknown>)["content"] as ProductDTO[]) ??
-        ((raw as Record<string, unknown>)["items"] as ProductDTO[]) ??
-        ((raw as Record<string, unknown>)["data"] as ProductDTO[]) ??
-        []);
 
-    const totalItems = !Array.isArray(raw)
-      ? (((raw as Record<string, unknown>)["totalElements"] as number) ??
-        ((raw as Record<string, unknown>)["totalItems"] as number) ??
-        content.length)
-      : content.length;
-    const totalPages = !Array.isArray(raw)
-      ? (((raw as Record<string, unknown>)["totalPages"] as number) ??
-        (typeof totalItems === "number" && params?.size
-          ? Math.ceil(totalItems / Number(params.size))
-          : 1))
-      : 1;
-    const currentPage = !Array.isArray(raw)
-      ? (((raw as Record<string, unknown>)["number"] as number) ??
-        ((raw as Record<string, unknown>)["currentPage"] as number) ??
-        params?.page ??
-        0)
-      : (params?.page ?? 0);
+        // Более умный извлекатель массива товаров
+        const extractArray = (src: unknown): ProductDTO[] => {
+            if (Array.isArray(src)) return src as ProductDTO[];
+            if (!src || typeof src !== "object") return [];
 
-    // 2) Категории и бренды — отдельными вызовами (на случай если бэк не возвращает их вместе)
-    const [categoriesResp, brandsResp] = await Promise.all([
-      apiClient
-        .get<CategoryDTO[]>("/categories")
-        .catch(() => ({ data: [] as CategoryDTO[] })),
-      apiClient
-        .get<BrandDTO[]>("/brands")
-        .catch(() => ({ data: [] as BrandDTO[] })),
-    ]);
+            const obj = src as Record<string, unknown>;
+            const candidates = [
+                "content",
+                "items",
+                "data",
+                "records",
+                "rows",
+                "result",
+                "list",
+                "products",
+            ];
 
-    return {
-      content,
-      currentPage,
-      totalItems,
-      totalPages,
-      categories: categoriesResp.data || [],
-      brands: brandsResp.data || [],
-    };
-  },
+            // 1) Пробуем известные ключи (включая вложенные)
+            for (const key of candidates) {
+                const val = obj[key];
+                if (Array.isArray(val)) return val as ProductDTO[];
+                if (val && typeof val === "object") {
+                    const nested = extractArray(val);
+                    if (Array.isArray(nested)) return nested;
+                }
+            }
 
-  getProduct: async (id: number): Promise<ProductDTO> => {
+            // 2) Фоллбек: ищем любой массив объектов с id или name
+            for (const [_, val] of Object.entries(obj)) {
+                if (Array.isArray(val) && val.length > 0 && typeof val[0] === "object") {
+                    const first = val[0] as Record<string, unknown>;
+                    if ("id" in first || "name" in first) {
+                        return val as ProductDTO[];
+                    }
+                }
+                if (val && typeof val === "object") {
+                    const nested = extractArray(val);
+                    if (Array.isArray(nested)) return nested;
+                }
+            }
+
+            return [];
+        };
+
+        const raw = productsResp.data as unknown;
+        const content: ProductDTO[] = extractArray(raw);
+
+        const getNum = (o: any, keys: string[], fallback: number): number => {
+            for (const k of keys) {
+                const v = o?.[k];
+                if (typeof v === "number") return v;
+            }
+            return fallback;
+        };
+
+        const totalItems = Array.isArray(raw)
+            ? (raw as unknown[]).length
+            : getNum(raw, ["totalElements", "totalItems", "count"], content.length);
+
+        const totalPages = Array.isArray(raw)
+            ? 1
+            : getNum(
+                raw,
+                ["totalPages"],
+                params?.size ? Math.ceil(totalItems / Number(params.size)) : 1,
+            );
+
+        const currentPage = Array.isArray(raw)
+            ? (params?.page ?? 0)
+            : getNum(raw, ["number", "currentPage", "page"], params?.page ?? 0);
+
+        // Категории и бренды — через /catalog/*
+        const [categoriesResp, brandsResp] = await Promise.all([
+            apiClient
+                .get<CategoryDTO[]>("/catalog/categories")
+                .catch(() => ({ data: [] as CategoryDTO[] })),
+            apiClient
+                .get<BrandDTO[]>("/catalog/brands")
+                .catch(() => ({ data: [] as BrandDTO[] })),
+        ]);
+
+        return {
+            content,
+            currentPage,
+            totalItems,
+            totalPages,
+            categories: categoriesResp.data || [],
+            brands: brandsResp.data || [],
+        };
+    },
+
+    getProduct: async (id: number): Promise<ProductDTO> => {
     const response = await apiClient.get<ProductDTO>(
       API_ROUTES.admin.product(id),
     );
@@ -268,7 +314,7 @@ export const adminApi = {
 
   // ===== КАТЕГОРИИ =====
   getCategories: async (): Promise<CategoryDTO[]> => {
-    const response = await apiClient.get<CategoryDTO[]>("/categories");
+    const response = await apiClient.get<CategoryDTO[]>("/catalog/categories");
     return response.data;
   },
 
@@ -299,7 +345,7 @@ export const adminApi = {
 
   // ===== БРЕНДЫ =====
   getBrands: async (): Promise<BrandDTO[]> => {
-    const response = await apiClient.get<BrandDTO[]>("/brands");
+    const response = await apiClient.get<BrandDTO[]>("/catalog/brands");
     return response.data;
   },
 
