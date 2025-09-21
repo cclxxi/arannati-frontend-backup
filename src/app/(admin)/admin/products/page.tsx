@@ -95,74 +95,110 @@ export default function ProductManagementPage() {
       brandId: args.brandId ?? null,
     });
 
-  // Стабильная функция запроса
-  const fetchProducts = useCallback(
-    async (args: {
-      page: number;
-      size: number;
-      search?: string;
-      categoryId?: number;
-      brandId?: number;
-    }) => {
-      const key = makeQueryKey(args);
+    // Определяем origin бэкенда из NEXT_PUBLIC_API_URL
+    const apiOrigin = useMemo(() => {
+        const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+        try {
+            return new URL(base).origin;
+        } catch {
+            return "http://localhost:8080";
+        }
+    }, []);
 
-      // Throttle: не чаще, чем MIN_INTERVAL_MS для одного и того же ключа
-      const now = Date.now();
-      if (
-        lastQueryKeyRef.current === key &&
-        now - lastCallTimeRef.current < MIN_INTERVAL_MS
-      ) {
-        return;
-      }
+    // Приведение относительного пути (uploads/...) к абсолютному URL бэкенда
+    const resolveImageUrl = useCallback(
+        (path?: string) => {
+            if (!path) return "";
+            const p = String(path).trim();
+            if (/^https?:\/\//i.test(p)) return p;
+            // Если пришёл только filename — подставим uploads/product-images/
+            const cleaned = p.includes("/")
+                ? p.replace(/^\/+/, "")
+                : `uploads/product-images/${p}`;
+            return `${apiOrigin}/${cleaned}`;
+        },
+        [apiOrigin],
+    );
 
-      // Не дублируем идентичные запросы
-      if (inFlightKeyRef.current === key) {
-        return;
-      }
-
-      inFlightKeyRef.current = key;
-      lastCallTimeRef.current = now;
-
-      setLoading(true);
-      try {
-        const resp = await adminApi.getProducts({
-          page: args.page - 1,
-          size: args.size,
-          search: args.search || undefined,
-          categoryId: args.categoryId,
-          brandId: args.brandId,
+    // Хелпер: сортируем изображения так, чтобы главная была первой
+    const sortImagesMainFirst = (imgs?: Array<{ imagePath: string; main?: boolean; isMain?: boolean }>) => {
+        if (!Array.isArray(imgs)) return [];
+        return [...imgs].sort((a, b) => {
+            const am = (a.main ?? (a as any).isMain) ? 1 : 0;
+            const bm = (b.main ?? (b as any).isMain) ? 1 : 0;
+            // main=true выше
+            if (am !== bm) return bm - am;
+            return 0;
         });
+    };
 
-        const enriched = (resp.content || []).map((p: ProductDTO) => ({
-          ...p,
-          categoryName:
-            p.categoryName || getCategoryNameById(p.categoryId) || "",
-          brandName: p.brandName || getBrandNameById(p.brandId) || "",
-        }));
 
-        setProducts(enriched);
-        setCategories(resp.categories || []);
-        setBrands(resp.brands || []);
+    // Стабильная функция запроса
+    const fetchProducts = useCallback(
+        async (args: {
+            page: number;
+            size: number;
+            search?: string;
+            categoryId?: number;
+            brandId?: number;
+        }) => {
+            const key = makeQueryKey(args);
+            const now = Date.now();
+            if (lastQueryKeyRef.current === key && now - lastCallTimeRef.current < MIN_INTERVAL_MS) return;
+            if (inFlightKeyRef.current === key) return;
 
-        setPagination((prev) =>
-          prev.total !== resp.totalItems
-            ? { ...prev, total: resp.totalItems }
-            : prev,
-        );
+            inFlightKeyRef.current = key;
+            lastCallTimeRef.current = now;
 
-        lastQueryKeyRef.current = key;
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        message.error("Не удалось загрузить товары");
-      } finally {
-        inFlightKeyRef.current = "";
-        setLoading(false);
-      }
-    },
-    [getCategoryNameById, getBrandNameById],
-  );
+            setLoading(true);
+            try {
+                const resp = await adminApi.getProducts({
+                    page: args.page - 1,
+                    size: args.size,
+                    search: args.search || undefined,
+                    categoryId: args.categoryId,
+                    brandId: args.brandId,
+                });
 
-  // Триггер загрузки при изменении параметров
+                const enriched = (resp.content || []).map((p: ProductDTO) => {
+                    const sortedImages = sortImagesMainFirst((p as any).images);
+                    // Нормализуем URL картинок для превью
+                    const normalizedImages = sortedImages.map((img) => ({
+                        ...img,
+                        imagePath: resolveImageUrl(img.imagePath),
+                    }));
+                    return {
+                        ...p,
+                        categoryName: p.categoryName || getCategoryNameById(p.categoryId) || "",
+                        brandName: p.brandName || getBrandNameById(p.brandId) || "",
+                        images: normalizedImages,
+                    } as ProductDTO;
+                });
+
+                setProducts(enriched);
+                setCategories(resp.categories || []);
+                setBrands(resp.brands || []);
+
+                if (typeof resp.totalItems === "number") {
+                    setPagination((prev) =>
+                        prev.total !== resp.totalItems ? { ...prev, total: resp.totalItems } : prev,
+                    );
+                }
+
+                lastQueryKeyRef.current = key;
+            } catch (error) {
+                console.error("Error fetching products:", error);
+                messageApi.error("Не удалось загрузить товары");
+            } finally {
+                inFlightKeyRef.current = "";
+                setLoading(false);
+            }
+        },
+        [getCategoryNameById, getBrandNameById, resolveImageUrl, messageApi],
+    );
+
+
+    // Триггер загрузки при изменении параметров
   useEffect(() => {
     const args = {
       page: pagination.current,
@@ -227,83 +263,65 @@ export default function ProductManagementPage() {
     }
   };
 
-  const handleSubmit = async (values: Partial<ProductDTO>) => {
-    try {
-      const productData = {
-        ...values,
-        active: values.active !== false,
-        professional: values.professional || false,
-      };
 
-      let productId: number | undefined;
-
-      if (editingProduct) {
-        await adminApi.updateProduct(editingProduct.id, productData);
-        productId = editingProduct.id; // ID уже известен при редактировании
-        messageApi.success("Товар успешно обновлен");
-      } else {
-        const created = await adminApi.createProduct(productData);
-        productId = created?.id;
-        messageApi.success("Товар успешно создан");
-      }
-
-      // Защита: без id не пытаемся загружать изображения
-      if (!productId) {
-        if (fileList.length > 0) {
-          console.error("[ProductManagement] Missing product id after save");
-          messageApi.error(
-            "Не удалось определить ID товара для загрузки изображений",
-          );
-        }
-      } else if (fileList.length > 0) {
-        for (let i = 0; i < fileList.length; i++) {
-          const file = fileList[i];
-          if (file && file.originFileObj) {
-            await adminApi.uploadProductImage(
-              productId,
-              file.originFileObj as File,
-              i === 0,
-            );
-          }
-        }
-      }
-
-      setModalVisible(false);
-      await fetchProducts({
-        page: pagination.current,
-        size: pagination.pageSize,
-        search: debouncedSearch || undefined,
-        categoryId: selectedCategory,
-        brandId: selectedBrand,
-      });
-    } catch (error) {
-      console.error("Error saving product:", error);
-      messageApi.error("Не удалось сохранить товар");
-    }
-  };
-
-    // Определяем origin бэкенда из NEXT_PUBLIC_API_URL
-    const apiOrigin = useMemo(() => {
-        const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+    const handleSubmit = async (values: Partial<ProductDTO>) => {
         try {
-            return new URL(base).origin;
-        } catch {
-            return "http://localhost:8080";
+            const productData = {
+                ...values,
+                active: values.active !== false,
+                professional: values.professional || false,
+            };
+
+            let productId: number | undefined;
+
+            if (editingProduct) {
+                await adminApi.updateProduct(editingProduct.id, productData);
+                productId = editingProduct.id;
+                messageApi.success("Товар успешно обновлен");
+            } else {
+                const created = await adminApi.createProduct(productData);
+                productId = created?.id;
+                messageApi.success("Товар успешно создан");
+            }
+
+            if (!productId) {
+                if (fileList.length > 0) {
+                    console.error("[ProductManagement] Missing product id after save");
+                    messageApi.error("Не удалось определить ID товара для загрузки изображений");
+                }
+            } else if (fileList.length > 0) {
+                // Загружаем все выбранные файлы: первый — главный
+                for (let i = 0; i < fileList.length; i++) {
+                    const file = fileList[i];
+                    if (file && file.originFileObj) {
+                        await adminApi.uploadProductImage(
+                            productId,
+                            file.originFileObj as File,
+                            i === 0,
+                        );
+                    }
+                }
+            }
+
+            setModalVisible(false);
+            setFileList([]); // очистим список выбранных файлов
+            await fetchProducts({
+                page: pagination.current,
+                size: pagination.pageSize,
+                search: debouncedSearch || undefined,
+                categoryId: selectedCategory,
+                brandId: selectedBrand,
+            });
+        } catch (error) {
+            console.error("Error saving product:", error);
+            messageApi.error("Не удалось сохранить товар");
         }
-    }, []);
+    };
 
 
-    // Приведение относительного пути (uploads/...) к абсолютному URL бэкенда
-    const resolveImageUrl = useCallback(
-        (path?: string) => {
-            if (!path) return "";
-            const p = String(path);
-            if (/^https?:\/\//i.test(p)) return p; // уже абсолютный URL
-            const cleaned = p.replace(/^\/+/, ""); // убираем ведущие слеши
-            return `${apiOrigin}/uploads/product-images/${cleaned}`;
-        },
-        [apiOrigin],
-    );
+
+
+
 
     const columns: ColumnsType<ProductDTO> = [
         {
@@ -317,7 +335,7 @@ export default function ProductManagementPage() {
                     <Image
                         width={60}
                         height={60}
-                        src={resolveImageUrl(images[0]?.imagePath)}
+                        src={images[0]?.imagePath}
                         alt="Product"
                         style={{ objectFit: "cover" }}
                         fallback="/images/product-placeholder.jpg"
