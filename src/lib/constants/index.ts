@@ -99,8 +99,11 @@ export const API_ROUTES = {
     cancelOrder: (id: number) => `/admin/orders/${id}/cancel`,
     reviews: "/admin/reviews",
     deleteReview: (id: number) => `/admin/reviews/${id}`,
+    cosmetologists: "/admin/cosmetologists",
     approveCosmetologist: (id: number) => `/admin/cosmetologists/${id}/approve`,
     declineCosmetologist: (id: number) => `/admin/cosmetologists/${id}/decline`,
+    materials: "/api/admin/materials",
+    material: (id: number) => `/api/admin/materials/${id}`,
   },
 
   // Materials
@@ -157,6 +160,7 @@ export const APP_ROUTES = {
     orders: "/admin/orders",
     reviews: "/admin/reviews",
     cosmetologists: "/admin/cosmetologists",
+    materials: "/admin/materials",
   },
 } as const;
 
