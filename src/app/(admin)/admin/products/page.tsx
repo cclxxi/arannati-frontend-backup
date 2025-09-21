@@ -1,7 +1,7 @@
 // src/app/admin/products/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Table,
   Button,
@@ -61,6 +61,9 @@ export default function ProductManagementPage() {
 
   const debouncedSearch = useDebounce(searchText.trim(), 400);
   const [form] = Form.useForm();
+
+  // Используем message API, чтобы не было предупреждения про статическую функцию
+  const [messageApi, messageContextHolder] = message.useMessage();
 
   // Справочники для быстрого доступа к названиям
   const getCategoryNameById = useCallback(
@@ -226,33 +229,38 @@ export default function ProductManagementPage() {
 
   const handleSubmit = async (values: Partial<ProductDTO>) => {
     try {
-      // Подготавливаем данные
       const productData = {
         ...values,
         active: values.active !== false,
         professional: values.professional || false,
       };
 
-      let savedProduct: ProductDTO;
+      let productId: number | undefined;
 
       if (editingProduct) {
-        savedProduct = await adminApi.updateProduct(
-          editingProduct.id,
-          productData,
-        );
-        message.success("Товар успешно обновлен");
+        await adminApi.updateProduct(editingProduct.id, productData);
+        productId = editingProduct.id; // ID уже известен при редактировании
+        messageApi.success("Товар успешно обновлен");
       } else {
-        savedProduct = await adminApi.createProduct(productData);
-        message.success("Товар успешно создан");
+        const created = await adminApi.createProduct(productData);
+        productId = created?.id;
+        messageApi.success("Товар успешно создан");
       }
 
-      // Загружаем изображения если есть
-      if (fileList.length > 0) {
+      // Защита: без id не пытаемся загружать изображения
+      if (!productId) {
+        if (fileList.length > 0) {
+          console.error("[ProductManagement] Missing product id after save");
+          messageApi.error(
+            "Не удалось определить ID товара для загрузки изображений",
+          );
+        }
+      } else if (fileList.length > 0) {
         for (let i = 0; i < fileList.length; i++) {
           const file = fileList[i];
           if (file && file.originFileObj) {
             await adminApi.uploadProductImage(
-              savedProduct.id,
+              productId,
               file.originFileObj as File,
               i === 0,
             );
@@ -270,34 +278,57 @@ export default function ProductManagementPage() {
       });
     } catch (error) {
       console.error("Error saving product:", error);
-      message.error("Не удалось сохранить товар");
+      messageApi.error("Не удалось сохранить товар");
     }
   };
 
-  const columns: ColumnsType<ProductDTO> = [
-    {
-      title: "Изображение",
-      dataIndex: "images",
-      key: "image",
-      width: 80,
-      fixed: "left",
-      render: (images: Array<{ imagePath: string }>) =>
-        images && images.length > 0 ? (
-          <Image
-            width={60}
-            height={60}
-            src={images[0]?.imagePath}
-            alt="Product"
-            style={{ objectFit: "cover" }}
-            fallback="/images/product-placeholder.jpg"
-          />
-        ) : (
-          <div className="w-[60px] h-[60px] bg-gray-200 flex items-center justify-center">
-            <EyeOutlined className="text-gray-400" />
-          </div>
-        ),
-    },
-    {
+    // Определяем origin бэкенда из NEXT_PUBLIC_API_URL
+    const apiOrigin = useMemo(() => {
+        const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+        try {
+            return new URL(base).origin;
+        } catch {
+            return "http://localhost:8080";
+        }
+    }, []);
+
+
+    // Приведение относительного пути (uploads/...) к абсолютному URL бэкенда
+    const resolveImageUrl = useCallback(
+        (path?: string) => {
+            if (!path) return "";
+            const p = String(path);
+            if (/^https?:\/\//i.test(p)) return p; // уже абсолютный URL
+            const cleaned = p.replace(/^\/+/, ""); // убираем ведущие слеши
+            return `${apiOrigin}/uploads/product-images/${cleaned}`;
+        },
+        [apiOrigin],
+    );
+
+    const columns: ColumnsType<ProductDTO> = [
+        {
+            title: "Изображение",
+            dataIndex: "images",
+            key: "image",
+            width: 80,
+            fixed: "left",
+            render: (images: Array<{ imagePath: string }>) =>
+                images && images.length > 0 ? (
+                    <Image
+                        width={60}
+                        height={60}
+                        src={resolveImageUrl(images[0]?.imagePath)}
+                        alt="Product"
+                        style={{ objectFit: "cover" }}
+                        fallback="/images/product-placeholder.jpg"
+                    />
+                ) : (
+                    <div className="w-[60px] h-[60px] bg-gray-200 flex items-center justify-center">
+                        <EyeOutlined className="text-gray-400" />
+                    </div>
+                ),
+        },
+        {
       title: "Название",
       dataIndex: "name",
       key: "name",
@@ -433,8 +464,9 @@ export default function ProductManagementPage() {
     maxCount: 10,
   };
 
-  return (
+    return (
     <div className="p-6">
+      {messageContextHolder}
       <AdminApiTest />
       <Card>
         {/* Заголовок */}

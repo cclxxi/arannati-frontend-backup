@@ -266,11 +266,75 @@ export const adminApi = {
   },
 
   createProduct: async (product: Partial<ProductDTO>): Promise<ProductDTO> => {
-    const response = await apiClient.post<ProductDTO>(
-      API_ROUTES.admin.products,
-      product,
+    const response = await apiClient.post<
+      ProductDTO | { product?: ProductDTO } | { data?: ProductDTO }
+    >(API_ROUTES.admin.products, product);
+
+    const raw = response.data as unknown;
+
+    // Универсальная нормализация: пытаемся достать объект товара с id из разных обёрток
+    const extractProduct = (src: unknown): ProductDTO | null => {
+      if (!src || typeof src !== "object") return null;
+      const obj = src as Record<string, unknown>;
+
+      // Вариант 1: пришёл сразу ProductDTO
+      if ("id" in obj && typeof obj["id"] === "number")
+        return obj as unknown as ProductDTO;
+
+      // Вариант 2: { product: { ... } }
+      if (
+        "product" in obj &&
+        obj["product"] &&
+        typeof obj["product"] === "object"
+      ) {
+        const p = obj["product"] as Record<string, unknown>;
+        if ("id" in p && typeof p["id"] === "number")
+          return p as unknown as ProductDTO;
+      }
+
+      // Вариант 3: { data: { ... } }
+      if ("data" in obj && obj["data"] && typeof obj["data"] === "object") {
+        const d = obj["data"] as Record<string, unknown>;
+        if ("id" in d && typeof d["id"] === "number")
+          return d as unknown as ProductDTO;
+      }
+
+      return null;
+    };
+
+    const created = extractProduct(raw);
+    if (!created) {
+      console.error(
+        "[adminApi.createProduct] Cannot extract created product id from response:",
+        raw,
+      );
+      throw new Error("Invalid createProduct response: missing product id");
+    }
+
+    return created;
+  },
+
+  uploadProductImage: async (
+    productId: number,
+    file: File,
+    isMain: boolean = false,
+  ): Promise<void> => {
+    const formData = new FormData();
+    // Делаем как в рабочем кейсе регистрации: только multipart form
+    formData.append("image", file);
+    formData.append("isMain", String(isMain));
+
+    await apiClient.post(
+      `${API_ROUTES.admin.product(productId)}/images`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        // Никаких query-параметров — только multipart
+        requiresAuth: true,
+      },
     );
-    return response.data;
   },
 
   updateProduct: async (
@@ -286,26 +350,6 @@ export const adminApi = {
 
   deleteProduct: async (id: number): Promise<void> => {
     await apiClient.delete(API_ROUTES.admin.product(id));
-  },
-
-  uploadProductImage: async (
-    productId: number,
-    file: File,
-    isMain: boolean = false,
-  ): Promise<void> => {
-    const formData = new FormData();
-    formData.append("image", file);
-    formData.append("isMain", String(isMain));
-
-    await apiClient.post(
-      `${API_ROUTES.admin.product(productId)}/images`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      },
-    );
   },
 
   deleteProductImage: async (
@@ -427,12 +471,15 @@ export const adminApi = {
   ): Promise<void> => {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("title", title);
-    formData.append("description", description);
 
     await apiClient.post("/admin/materials", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
+      },
+      // title и description — в query, как в спецификации
+      params: {
+        title,
+        description,
       },
     });
   },
