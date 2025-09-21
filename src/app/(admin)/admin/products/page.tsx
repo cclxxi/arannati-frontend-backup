@@ -62,121 +62,134 @@ export default function ProductManagementPage() {
   const debouncedSearch = useDebounce(searchText.trim(), 400);
   const [form] = Form.useForm();
 
-    // Хелперы мемоизации/блокировок запросов
-    const lastQueryKeyRef = useRef<string>("");
-    const inFlightKeyRef = useRef<string>("");
-    const lastCallTimeRef = useRef<number>(0);
-    const MIN_INTERVAL_MS = 500;
+  // Справочники для быстрого доступа к названиям
+  const getCategoryNameById = useCallback(
+    (id?: number) => categories.find((c) => c.id === id)?.name,
+    [categories],
+  );
+  const getBrandNameById = useCallback(
+    (id?: number) => brands.find((b) => b.id === id)?.name,
+    [brands],
+  );
 
-    const getCurrentQueryArgs = () => ({
-        page: pagination.current,
-        size: pagination.pageSize,
-        search: debouncedSearch || undefined,
-        categoryId: selectedCategory,
-        brandId: selectedBrand,
+  // Хелперы мемоизации/блокировок запросов
+  const lastQueryKeyRef = useRef<string>("");
+  const inFlightKeyRef = useRef<string>("");
+  const lastCallTimeRef = useRef<number>(0);
+  const MIN_INTERVAL_MS = 500;
+  const makeQueryKey = (args: {
+    page: number;
+    size: number;
+    search?: string;
+    categoryId?: number;
+    brandId?: number;
+  }) =>
+    JSON.stringify({
+      page: args.page,
+      size: args.size,
+      search: args.search || "",
+      categoryId: args.categoryId ?? null,
+      brandId: args.brandId ?? null,
     });
 
-    const makeQueryKey = (args: {
-        page: number;
-        size: number;
-        search?: string;
-        categoryId?: number;
-        brandId?: number;
-    }) =>
-        JSON.stringify({
-            page: args.page,
-            size: args.size,
-            search: args.search || "",
-            categoryId: args.categoryId ?? null,
-            brandId: args.brandId ?? null,
+  // Стабильная функция запроса
+  const fetchProducts = useCallback(
+    async (args: {
+      page: number;
+      size: number;
+      search?: string;
+      categoryId?: number;
+      brandId?: number;
+    }) => {
+      const key = makeQueryKey(args);
+
+      // Throttle: не чаще, чем MIN_INTERVAL_MS для одного и того же ключа
+      const now = Date.now();
+      if (
+        lastQueryKeyRef.current === key &&
+        now - lastCallTimeRef.current < MIN_INTERVAL_MS
+      ) {
+        return;
+      }
+
+      // Не дублируем идентичные запросы
+      if (inFlightKeyRef.current === key) {
+        return;
+      }
+
+      inFlightKeyRef.current = key;
+      lastCallTimeRef.current = now;
+
+      setLoading(true);
+      try {
+        const resp = await adminApi.getProducts({
+          page: args.page - 1,
+          size: args.size,
+          search: args.search || undefined,
+          categoryId: args.categoryId,
+          brandId: args.brandId,
         });
 
-    // Стабильная функция запроса
-    const fetchProducts = useCallback(
-        async (args: {
-            page: number;
-            size: number;
-            search?: string;
-            categoryId?: number;
-            brandId?: number;
-        }) => {
-            const key = makeQueryKey(args);
+        const enriched = (resp.content || []).map((p: ProductDTO) => ({
+          ...p,
+          categoryName:
+            p.categoryName || getCategoryNameById(p.categoryId) || "",
+          brandName: p.brandName || getBrandNameById(p.brandId) || "",
+        }));
 
-            // Throttle: не чаще, чем раз в MIN_INTERVAL_MS для одного и того же набора параметров
-            const now = Date.now();
-            if (lastQueryKeyRef.current === key && now - lastCallTimeRef.current < MIN_INTERVAL_MS) {
-                return;
-            }
+        setProducts(enriched);
+        setCategories(resp.categories || []);
+        setBrands(resp.brands || []);
 
-            // Если уже идёт запрос с такими же параметрами — пропускаем
-            if (inFlightKeyRef.current === key) {
-                return;
-            }
+        setPagination((prev) =>
+          prev.total !== resp.totalItems
+            ? { ...prev, total: resp.totalItems }
+            : prev,
+        );
 
-            inFlightKeyRef.current = key;
-            lastCallTimeRef.current = now;
+        lastQueryKeyRef.current = key;
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        message.error("Не удалось загрузить товары");
+      } finally {
+        inFlightKeyRef.current = "";
+        setLoading(false);
+      }
+    },
+    [getCategoryNameById, getBrandNameById],
+  );
 
-            setLoading(true);
-            try {
-                const response = await adminApi.getProducts({
-                    page: args.page - 1,
-                    size: args.size,
-                    search: args.search || undefined,
-                    categoryId: args.categoryId,
-                    brandId: args.brandId,
-                });
-
-                setProducts(response.content || []);
-                setCategories(response.categories || []);
-                setBrands(response.brands || []);
-
-                if (typeof response.totalItems === "number") {
-                    setPagination((prev) =>
-                        prev.total !== response.totalItems
-                            ? { ...prev, total: response.totalItems }
-                            : prev,
-                    );
-                }
-
-                // Фиксируем последний успешно загруженный ключ
-                lastQueryKeyRef.current = key;
-            } catch (error) {
-                console.error("Error fetching products:", error);
-                message.error("Не удалось загрузить товары");
-            } finally {
-                inFlightKeyRef.current = "";
-                setLoading(false);
-            }
-        },
-        [],
-    );
-
-    // Триггер загрузки при изменении параметров
-    useEffect(() => {
-        const args = getCurrentQueryArgs();
-        void fetchProducts(args);
-    }, [
-        pagination.current,
-        pagination.pageSize,
-        debouncedSearch,
-        selectedCategory,
-        selectedBrand,
-        fetchProducts,
-    ]);
-
-    // Обработчики фильтров: сбрасываем страницу на 1
-    const onChangeCategory = (value?: number) => {
-        setSelectedCategory(value);
-        setPagination((prev) => ({ ...prev, current: 1 }));
+  // Триггер загрузки при изменении параметров
+  useEffect(() => {
+    const args = {
+      page: pagination.current,
+      size: pagination.pageSize,
+      search: debouncedSearch || undefined,
+      categoryId: selectedCategory,
+      brandId: selectedBrand,
     };
+    void fetchProducts(args);
+  }, [
+    pagination.pageSize,
+    debouncedSearch,
+    selectedCategory,
+    selectedBrand,
+    fetchProducts,
+    pagination,
+  ]);
 
-    const onChangeBrand = (value?: number) => {
-        setSelectedBrand(value);
-        setPagination((prev) => ({ ...prev, current: 1 }));
-    };
+  // Обработчики фильтров: сбрасываем страницу на 1
+  const onChangeCategory = (value?: number) => {
+    setSelectedCategory(value);
+    setPagination((prev) => ({ ...prev, current: 1 }));
+  };
 
+  const onChangeBrand = (value?: number) => {
+    setSelectedBrand(value);
+    setPagination((prev) => ({ ...prev, current: 1 }));
+  };
 
-    const handleAddProduct = () => {
+  const handleAddProduct = () => {
     setEditingProduct(null);
     form.resetFields();
     setFileList([]);
@@ -194,19 +207,24 @@ export default function ProductManagementPage() {
     setModalVisible(true);
   };
 
-    const handleDeleteProduct = async (id: number) => {
-        try {
-            await adminApi.deleteProduct(id);
-            message.success("Товар успешно удален");
-            await fetchProducts(getCurrentQueryArgs());
-        } catch (error) {
-            console.error("Error deleting product:", error);
-            message.error("Не удалось удалить товар");
-        }
-    };
+  const handleDeleteProduct = async (id: number) => {
+    try {
+      await adminApi.deleteProduct(id);
+      message.success("Товар успешно удален");
+      await fetchProducts({
+        page: pagination.current,
+        size: pagination.pageSize,
+        search: debouncedSearch || undefined,
+        categoryId: selectedCategory,
+        brandId: selectedBrand,
+      });
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      message.error("Не удалось удалить товар");
+    }
+  };
 
-
-    const handleSubmit = async (values: Partial<ProductDTO>) => {
+  const handleSubmit = async (values: Partial<ProductDTO>) => {
     try {
       // Подготавливаем данные
       const productData = {
@@ -236,14 +254,20 @@ export default function ProductManagementPage() {
             await adminApi.uploadProductImage(
               savedProduct.id,
               file.originFileObj as File,
-              i === 0, // Первое изображение делаем главным
+              i === 0,
             );
           }
         }
       }
 
       setModalVisible(false);
-      await fetchProducts(getCurrentQueryArgs());
+      await fetchProducts({
+        page: pagination.current,
+        size: pagination.pageSize,
+        search: debouncedSearch || undefined,
+        categoryId: selectedCategory,
+        brandId: selectedBrand,
+      });
     } catch (error) {
       console.error("Error saving product:", error);
       message.error("Не удалось сохранить товар");
@@ -256,6 +280,7 @@ export default function ProductManagementPage() {
       dataIndex: "images",
       key: "image",
       width: 80,
+      fixed: "left",
       render: (images: Array<{ imagePath: string }>) =>
         images && images.length > 0 ? (
           <Image
@@ -276,10 +301,14 @@ export default function ProductManagementPage() {
       title: "Название",
       dataIndex: "name",
       key: "name",
+      ellipsis: true,
+      width: 260,
       render: (text: string, record: ProductDTO) => (
-        <div>
-          <div className="font-medium">{text}</div>
-          <div className="text-xs text-gray-500">SKU: {record.sku}</div>
+        <div className="min-w-0">
+          <div className="font-medium truncate">{text}</div>
+          <div className="text-xs text-gray-500 truncate">
+            SKU: {record.sku}
+          </div>
         </div>
       ),
     },
@@ -287,17 +316,28 @@ export default function ProductManagementPage() {
       title: "Категория",
       dataIndex: "categoryName",
       key: "category",
-      render: (text: string) => <Tag>{text || "Без категории"}</Tag>,
+      width: 160,
+      render: (_: string, record: ProductDTO) => {
+        const name =
+          record.categoryName || getCategoryNameById(record.categoryId);
+        return <Tag>{name || "Без категории"}</Tag>;
+      },
     },
     {
       title: "Бренд",
       dataIndex: "brandName",
       key: "brand",
-      render: (text: string) => <Tag>{text || "Без бренда"}</Tag>,
+      width: 160,
+      render: (_: string, record: ProductDTO) => {
+        const name = record.brandName || getBrandNameById(record.brandId);
+        return <Tag>{name || "Без бренда"}</Tag>;
+      },
     },
     {
       title: "Цены",
       key: "prices",
+      width: 200,
+      responsive: ["md"],
       render: (_, record: ProductDTO) => (
         <Space direction="vertical" size="small">
           <div>Обычная: {formatPrice(record.regularPrice)}</div>
@@ -318,6 +358,7 @@ export default function ProductManagementPage() {
       title: "Наличие",
       dataIndex: "stockQuantity",
       key: "stock",
+      width: 140,
       render: (stock: number) => (
         <Tag color={stock > 10 ? "green" : stock > 0 ? "orange" : "red"}>
           {stock > 0 ? `В наличии: ${stock}` : "Нет в наличии"}
@@ -327,6 +368,7 @@ export default function ProductManagementPage() {
     {
       title: "Статус",
       key: "status",
+      width: 140,
       render: (_, record: ProductDTO) => (
         <Space>
           {record.active ? (
@@ -342,6 +384,7 @@ export default function ProductManagementPage() {
       title: "Действия",
       key: "actions",
       width: 120,
+      fixed: "right",
       render: (_, record: ProductDTO) => (
         <Space>
           <Tooltip title="Редактировать">
@@ -394,7 +437,8 @@ export default function ProductManagementPage() {
     <div className="p-6">
       <AdminApiTest />
       <Card>
-        <div className="mb-6 flex justify-between items-center">
+        {/* Заголовок */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Управление товарами</h1>
             <p className="text-gray-500 mt-2">
@@ -406,14 +450,15 @@ export default function ProductManagementPage() {
             icon={<PlusOutlined />}
             onClick={handleAddProduct}
             size="large"
+            className="self-start sm:self-auto"
           >
             Добавить товар
           </Button>
         </div>
 
         {/* Фильтры */}
-        <Row gutter={16} className="mb-6">
-          <Col span={8}>
+        <Row gutter={[12, 12]} className="mb-6">
+          <Col xs={24} md={8}>
             <Input
               placeholder="Поиск по названию..."
               prefix={<SearchOutlined />}
@@ -422,13 +467,15 @@ export default function ProductManagementPage() {
               allowClear
             />
           </Col>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Select
               placeholder="Выберите категорию"
               style={{ width: "100%" }}
               value={selectedCategory}
               onChange={onChangeCategory}
               allowClear
+              showSearch
+              optionFilterProp="children"
             >
               {categories.map((cat) => (
                 <Option key={cat.id} value={cat.id}>
@@ -437,13 +484,15 @@ export default function ProductManagementPage() {
               ))}
             </Select>
           </Col>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Select
               placeholder="Выберите бренд"
               style={{ width: "100%" }}
               value={selectedBrand}
               onChange={onChangeBrand}
               allowClear
+              showSearch
+              optionFilterProp="children"
             >
               {brands.map((brand) => (
                 <Option key={brand.id} value={brand.id}>
@@ -460,6 +509,8 @@ export default function ProductManagementPage() {
           dataSource={products}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1200 }}
+          sticky
           pagination={{
             ...pagination,
             onChange: (page, pageSize) => {
