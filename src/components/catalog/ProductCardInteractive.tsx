@@ -15,40 +15,80 @@ import AuthRequiredModal from "@/components/common/AuthRequiredModal";
 
 // Компонент для безопасного отображения изображения
 const ProductImage = ({
-  src,
-  alt,
-  fallback = "/placeholder-product.png",
-}: {
-  src?: string | null;
-  alt: string;
-  fallback?: string;
+                          src,
+                          alt,
+                          fallback = "/product-placeholder.jpg",
+                      }: {
+    src?: string | null;
+    alt: string;
+    fallback?: string;
 }) => {
-  const [imgSrc, setImgSrc] = useState(src || fallback);
-  const [isLoading, setIsLoading] = useState(true);
+    const resolveImageSrc = (val?: string | null) => {
+        const placeholder = fallback || "/product-placeholder.jpg";
+        if (!val || typeof val !== "string" || val.trim() === "") return placeholder;
 
-  useEffect(() => {
-    setImgSrc(src || fallback);
-  }, [src, fallback]);
+        const trimmed = val.trim();
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            return trimmed;
+        }
 
-  return (
-    <>
-      {isLoading && (
-        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
-      )}
-      <Image
-        src={imgSrc}
-        alt={alt}
-        fill
-        className={`object-cover ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
-        onLoad={() => setIsLoading(false)}
-        onError={() => {
-          setImgSrc(fallback);
-          setIsLoading(false);
-        }}
-      />
-    </>
-  );
+        const apiBase =
+            (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/api\/?$/, "") ||
+            process.env.NEXT_PUBLIC_WS_URL ||
+            "http://localhost:8080";
+
+        const ensureLeadingSlash = (p: string) => (p.startsWith("/") ? p : `/${p}`);
+        const uploadsBase = `${apiBase}/uploads/product-images`;
+
+        if (trimmed === "/placeholder-product.png" || trimmed === placeholder) {
+            return trimmed;
+        }
+
+        if (trimmed.startsWith("/uploads/") || trimmed.startsWith("uploads/")) {
+            return `${apiBase}${ensureLeadingSlash(trimmed)}`;
+        }
+        if (trimmed.startsWith("/files/") || trimmed.startsWith("files/")) {
+            return `${apiBase}${ensureLeadingSlash(trimmed)}`;
+        }
+
+        if (!trimmed.includes("/")) {
+            return `${uploadsBase}/${trimmed}`;
+        }
+
+        if (trimmed.startsWith("/")) {
+            return trimmed;
+        }
+
+        return `${uploadsBase}/${trimmed}`;
+    };
+
+    const [imgSrc, setImgSrc] = useState(resolveImageSrc(src));
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setImgSrc(resolveImageSrc(src));
+    }, [src]);
+
+    return (
+        <>
+            {isLoading && (
+                <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            )}
+            <Image
+                src={imgSrc}
+                alt={alt}
+                fill
+                className={`object-cover ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
+                onLoad={() => setIsLoading(false)}
+                onError={() => {
+                    setImgSrc(fallback);
+                    setIsLoading(false);
+                }}
+            />
+        </>
+    );
 };
+
 
 interface ProductCardInteractiveProps {
   product: ProductDTO;

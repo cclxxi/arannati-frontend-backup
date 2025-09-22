@@ -1,7 +1,7 @@
 // src/components/home/FeaturedProducts.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Heart, ShoppingCart, Eye, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,24 +11,7 @@ import { App } from "antd";
 import AuthRequiredModal from "@/components/common/AuthRequiredModal";
 import type { ProductDTO } from "@/types/api";
 
-// Helper function to format image URLs
-const formatImageUrl = (imagePath: string): string => {
-  // If already a complete URL, return as is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
-  }
-  
-  // If already starts with slash, return as is
-  if (imagePath.startsWith('/')) {
-    return imagePath;
-  }
-  
-  // For relative paths, construct the full URL
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
-  // Remove /api from base URL if present and add /uploads prefix
-  const imageBaseUrl = baseUrl.replace('/api', '') + '/uploads/images/';
-  return imageBaseUrl + imagePath;
-};
+// Helper function to format image URLs - moved inside component for memoization
 
 // Define possible response types
 interface ProductsResponse {
@@ -109,7 +92,7 @@ export default function FeaturedProducts() {
     },
   });
 
-  const handleAddToCart = (product: ProductDTO) => {
+  const handleAddToCart = useCallback((product: ProductDTO) => {
     if (!isAuthenticated) {
       setAuthModalConfig({
         title: "Войдите, чтобы добавить в корзину",
@@ -119,9 +102,9 @@ export default function FeaturedProducts() {
       return;
     }
     addToCartMutation.mutate(product.id!);
-  };
+  }, [isAuthenticated, addToCartMutation]);
 
-  const handleToggleWishlist = (product: ProductDTO) => {
+  const handleToggleWishlist = useCallback((product: ProductDTO) => {
     if (!isAuthenticated) {
       setAuthModalConfig({
         title: "Войдите, чтобы добавить в избранное",
@@ -131,9 +114,9 @@ export default function FeaturedProducts() {
       return;
     }
     toggleWishlistMutation.mutate(product.id!);
-  };
+  }, [isAuthenticated, toggleWishlistMutation]);
 
-  const formatPrice = (price: number | string) => {
+  const formatPrice = useCallback((price: number | string) => {
     const numPrice = Number(price);
     // Handle NaN, null, undefined, and negative values
     if (isNaN(numPrice) || numPrice == null || numPrice < 0) {
@@ -145,7 +128,34 @@ export default function FeaturedProducts() {
       currency: "KZT",
       minimumFractionDigits: 0,
     }).format(numPrice);
-  };
+  }, []);
+
+  const calculateDiscount = useCallback((regularPrice: number | string, salePrice: number | string) => {
+    const regular = Number(regularPrice);
+    const sale = Number(salePrice);
+    if (isNaN(regular) || isNaN(sale) || regular <= 0) {
+      return 0;
+    }
+    return Math.round(((regular - sale) / regular) * 100);
+  }, []);
+
+  const formatImageUrl = useCallback((imagePath: string): string => {
+    // If already a complete URL, return as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // If already starts with slash, return as is
+    if (imagePath.startsWith('/')) {
+      return imagePath;
+    }
+    
+    // For relative paths, construct the full URL
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+    // Remove /api from base URL if present and add /uploads prefix
+    const imageBaseUrl = baseUrl.replace('/api', '') + '/uploads/product-images/';
+    return imageBaseUrl + imagePath;
+  }, []);
 
   if (isLoading) {
     return (
@@ -206,7 +216,7 @@ export default function FeaturedProducts() {
                     product.images.length > 0 &&
                     product.images[0]?.imagePath ? (
                       <Image
-                        src={formatImageUrl(product.images[0].imagePath) || "/placeholder.jpg"}
+                        src={formatImageUrl(product.images[0].imagePath) || "/images/product-placeholder.jpg"}
                         alt={product.name}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
@@ -221,15 +231,7 @@ export default function FeaturedProducts() {
                     {/* Badges */}
                     {product.salePrice && product.regularPrice && (
                       <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                        -
-                        {(() => {
-                          const regular = Number(product.regularPrice);
-                          const sale = Number(product.salePrice);
-                          if (isNaN(regular) || isNaN(sale) || regular <= 0)
-                            return 0;
-                          return Math.round(((regular - sale) / regular) * 100);
-                        })()}
-                        %
+                        -{calculateDiscount(product.regularPrice, product.salePrice)}%
                       </span>
                     )}
 

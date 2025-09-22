@@ -98,41 +98,92 @@ export function CartWishlistIcons() {
     setShowAuthModal(true);
   };
 
-  // Компонент изображения товара с улучшенной обработкой
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ProductImage = ({ item, alt }: { item?: any; alt: string }) => {
-    // Пытаемся найти изображение в разных местах структуры данных
-    const imagePath =
-      item?.product?.images?.[0]?.imagePath ||
-      item?.product?.images?.[0]?.url ||
-      item?.product?.image ||
-      item?.product?.imageUrl ||
-      item?.product?.mainImage ||
-      item?.images?.[0]?.imagePath ||
-      item?.images?.[0]?.url ||
-      item?.image ||
-      item?.imageUrl;
+    // Компонент изображения товара с улучшенной обработкой
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ProductImage = ({ item, alt }: { item?: any; alt: string }) => {
+        // Пытаемся найти изображение в разных местах структуры данных
+        const rawImagePath =
+            item?.product?.images?.[0]?.imagePath ||
+            item?.product?.images?.[0]?.url ||
+            item?.product?.image ||
+            item?.product?.imageUrl ||
+            item?.product?.mainImage ||
+            item?.images?.[0]?.imagePath ||
+            item?.images?.[0]?.url ||
+            item?.image ||
+            item?.imageUrl;
 
-    return (
-      <div className="relative w-full h-full">
-        {imagePath ? (
-          <Image
-            src={imagePath}
-            alt={alt}
-            fill
-            className="object-cover rounded"
-            sizes="48px"
-          />
-        ) : (
-          <div className="w-full h-full bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center">
-            <ShoppingCart className="w-4 h-4 text-gray-400" />
-          </div>
-        )}
-      </div>
-    );
-  };
+        // Нормализация src как и на странице товара/в карточках
+        const resolveImageSrc = (src?: string | null) => {
+            const placeholder = "/product-placeholder.jpg";
+            if (!src || typeof src !== "string" || src.trim() === "") return placeholder;
 
-  // Рендер содержимого дропдауна корзины
+            const trimmed = src.trim();
+
+            // Абсолютные ссылки
+            if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+                return trimmed;
+            }
+
+            // База бэка: NEXT_PUBLIC_API_URL без /api, иначе NEXT_PUBLIC_WS_URL, иначе http://localhost:8080
+            const apiBase =
+                (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/api\/?$/, "") ||
+                process.env.NEXT_PUBLIC_WS_URL ||
+                "http://localhost:8080";
+
+            const ensureLeadingSlash = (p: string) => (p.startsWith("/") ? p : `/${p}`);
+            const uploadsBase = `${apiBase}/uploads/product-images`;
+
+            // Публичные плейсхолдеры оставляем относительными
+            if (trimmed === "/placeholder-product.png" || trimmed === "/product-placeholder.jpg") {
+                return trimmed;
+            }
+
+            // Пути, в которых уже есть uploads/... или files/...
+            if (trimmed.startsWith("/uploads/") || trimmed.startsWith("uploads/")) {
+                return `${apiBase}${ensureLeadingSlash(trimmed)}`;
+            }
+            if (trimmed.startsWith("/files/") || trimmed.startsWith("files/")) {
+                return `${apiBase}${ensureLeadingSlash(trimmed)}`;
+            }
+
+            // Только имя файла (uuid.jpg и т.п.) → кладем в /uploads/product-images
+            if (!trimmed.includes("/")) {
+                return `${uploadsBase}/${trimmed}`;
+            }
+
+            // Абсолютные пути от корня сайта считаем public
+            if (trimmed.startsWith("/")) {
+                return trimmed;
+            }
+
+            // Остальные относительные — также в /uploads/product-images
+            return `${uploadsBase}/${trimmed}`;
+        };
+
+        const imagePath = resolveImageSrc(rawImagePath);
+
+        return (
+            <div className="relative w-full h-full">
+                {imagePath ? (
+                    <Image
+                        src={imagePath}
+                        alt={alt}
+                        fill
+                        className="object-cover rounded"
+                        sizes="48px"
+                    />
+                ) : (
+                    <div className="w-full h-full bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center">
+                        <ShoppingCart className="w-4 h-4 text-gray-400" />
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+
+    // Рендер содержимого дропдауна корзины
   const cartDropdownRender = () => (
     <div className="w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl max-h-96 overflow-hidden">
       <div className="p-3 border-b border-gray-200 dark:border-gray-700">

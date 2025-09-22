@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Menu, X, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Logo, ThemeToggle } from "@/components/ui";
@@ -28,14 +28,15 @@ export default function Header({
   const { isDark } = useTheme();
   const router = useRouter();
 
-  // Create brand menu items for dropdown
-  const brandMenuItems: MenuProps["items"] = BRANDS_DATA.map((brand) => ({
-    key: brand.id.toString(),
-    label: brand.name,
-    onClick: () => {
-      router.push(`/catalog?brandId=${brand.brandId}`);
-    },
-  }));
+  // Create brand menu items for dropdown - memoized to prevent recreation on every render
+  const brandMenuItems: MenuProps["items"] = useMemo(() => 
+    BRANDS_DATA.map((brand) => ({
+      key: brand.id.toString(),
+      label: brand.name,
+      onClick: () => {
+        router.push(`/catalog?brandId=${brand.brandId}`);
+      },
+    })), []);
 
   useEffect(() => {
     const handleScroll = () => {
