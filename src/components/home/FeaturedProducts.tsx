@@ -11,6 +11,25 @@ import { App } from "antd";
 import AuthRequiredModal from "@/components/common/AuthRequiredModal";
 import type { ProductDTO } from "@/types/api";
 
+// Helper function to format image URLs
+const formatImageUrl = (imagePath: string): string => {
+  // If already a complete URL, return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // If already starts with slash, return as is
+  if (imagePath.startsWith('/')) {
+    return imagePath;
+  }
+  
+  // For relative paths, construct the full URL
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+  // Remove /api from base URL if present and add /uploads prefix
+  const imageBaseUrl = baseUrl.replace('/api', '') + '/uploads/images/';
+  return imageBaseUrl + imagePath;
+};
+
 // Define possible response types
 interface ProductsResponse {
   products?: ProductDTO[];
@@ -187,7 +206,7 @@ export default function FeaturedProducts() {
                     product.images.length > 0 &&
                     product.images[0]?.imagePath ? (
                       <Image
-                        src={product.images[0].imagePath || "/placeholder.jpg"}
+                        src={formatImageUrl(product.images[0].imagePath) || "/placeholder.jpg"}
                         alt={product.name}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
