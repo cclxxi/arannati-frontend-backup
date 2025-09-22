@@ -10,9 +10,9 @@ import { CartWishlistIcons } from "@/components/common/CartWishlistIcons";
 import AccountButton from "@/components/common/AccountButton";
 import { Dropdown, type MenuProps } from "antd";
 import { useRouter } from "next/navigation";
-
-// Данные о брендах
-import { BRANDS_DATA } from "@/constants";
+import { useQuery } from "@tanstack/react-query";
+import { catalogApi } from "@/lib/api/services/catalog";
+import { useFiltersStore } from "@/stores";
 
 interface HeaderProps {
   className?: string;
@@ -27,16 +27,33 @@ export default function Header({
   const [scrolled, setScrolled] = useState(false);
   const { isDark } = useTheme();
   const router = useRouter();
+  const setFilter = useFiltersStore((s) => s.setFilter);
 
-  // Create brand menu items for dropdown - memoized to prevent recreation on every render
-  const brandMenuItems: MenuProps["items"] = useMemo(() => 
-    BRANDS_DATA.map((brand) => ({
-      key: brand.id.toString(),
-      label: brand.name,
-      onClick: () => {
-        router.push(`/catalog?brandId=${brand.brandId}`);
-      },
-    })), []);
+  // Загружаем бренды из БД
+  const { data: brands = [], isLoading: brandsLoading } = useQuery({
+    queryKey: ["brands"],
+    queryFn: () => catalogApi.getBrands(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Формируем items для Dropdown: применяем фильтр бренда и переходим в каталог
+  const brandMenuItems: MenuProps["items"] = useMemo(
+    () =>
+      (brands || []).map((brand) => ({
+        key: String(brand.id),
+        label: brand.name,
+        onClick: () => {
+          // мгновенно применяем в zustand для текущей сессии
+          setFilter("brandId", brand.id);
+          // переходим в каталог с query, чтобы каталог синхронизировал фильтр у себя
+          router.push(
+            `/catalog?brandId=${encodeURIComponent(String(brand.id))}`,
+          );
+          setIsMenuOpen(false);
+        },
+      })),
+    [brands, router, setFilter],
+  );
 
   useEffect(() => {
     const handleScroll = () => {
@@ -85,6 +102,7 @@ export default function Header({
               menu={{ items: brandMenuItems }}
               placement="bottom"
               trigger={["hover"]}
+              disabled={brandsLoading || brands.length === 0}
             >
               <div className="flex items-center cursor-pointer text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light transition-colors font-medium whitespace-nowrap">
                 Бренды
@@ -165,6 +183,7 @@ export default function Header({
               }}
               placement="bottomLeft"
               trigger={["click"]}
+              disabled={brandsLoading || brands.length === 0}
             >
               <div className="flex items-center justify-between py-2 text-forest dark:text-beige-light hover:text-brown dark:hover:text-brown-light cursor-pointer">
                 Бренды

@@ -15,6 +15,7 @@ import {
   EyeTwoTone,
   EyeInvisibleOutlined,
 } from "@ant-design/icons";
+
 import { APP_ROUTES } from "@/constants";
 import { useRegister } from "@/hooks";
 import toast from "react-hot-toast";

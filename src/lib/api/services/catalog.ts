@@ -16,6 +16,27 @@ export interface CatalogFilters {
   sort?: string | string[];
 }
 
+interface BrandDTO {
+  id: number;
+  name: string;
+  slug?: string;
+}
+
+interface CategoryDTO {
+  id: number;
+  name: string;
+  parentId?: number;
+  slug?: string;
+}
+
+// Нормализатор контента ответа (поддерживает и пагинацию, и массив)
+function normalizeContent<T>(
+  data: PaginatedResponse<T> | T[] | undefined,
+): T[] {
+  if (!data) return [];
+  return Array.isArray(data) ? data : (data.content ?? []);
+}
+
 // API методы для каталога
 export const catalogApi = {
   // Получение списка товаров
@@ -28,11 +49,47 @@ export const catalogApi = {
       sortParams = sortParams.join(",");
     }
 
-    const params = {
-      ...filters,
+    // Готовим сырые параметры
+    const rawParams = {
+      page: filters?.page ?? 0,
+      size: filters?.size ?? 20,
       sort: sortParams || "sortOrder,asc",
+      search: filters?.search?.trim() || undefined,
+      categoryId:
+        typeof filters?.categoryId === "number" &&
+        Number.isFinite(filters.categoryId)
+          ? filters.categoryId
+          : undefined,
+      brandId:
+        typeof filters?.brandId === "number" && Number.isFinite(filters.brandId)
+          ? filters.brandId
+          : undefined,
+      minPrice:
+        typeof filters?.minPrice === "number" &&
+        Number.isFinite(filters.minPrice)
+          ? filters.minPrice
+          : undefined,
+      maxPrice:
+        typeof filters?.maxPrice === "number" &&
+        Number.isFinite(filters.maxPrice)
+          ? filters.maxPrice
+          : undefined,
+      onSale: typeof filters?.onSale === "boolean" ? filters.onSale : undefined,
+      professional:
+        typeof filters?.professional === "boolean"
+          ? filters.professional
+          : undefined,
     };
 
+    // Очищаем параметры от undefined/null/пустых строк
+    const params: Record<string, string | number | boolean> = {};
+    Object.entries(rawParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params[key] = value as string | number | boolean;
+      }
+    });
+
+    // Важно: используем обычный get, но только с очищенными params
     const response = await apiClient.get<PaginatedResponse<ProductDTO>>(
       API_ROUTES.catalog.products,
       { params },
@@ -133,15 +190,33 @@ export const catalogApi = {
 
   // Получение категорий
   getCategories: async (): Promise<Array<{ id: number; name: string }>> => {
-    // Временная заглушка - возвращаем пустой массив
-    // В реальном проекте здесь должен быть запрос к API
-    return [];
+    const response = await apiClient.get<
+      PaginatedResponse<CategoryDTO> | CategoryDTO[]
+    >("/catalog/categories");
+
+    const list = normalizeContent<CategoryDTO>(response.data);
+
+    return list
+      .map((c): { id: number; name: string } | null => {
+        if (typeof c.id !== "number" || typeof c.name !== "string") return null;
+        return { id: c.id, name: c.name };
+      })
+      .filter((v): v is { id: number; name: string } => v !== null);
   },
 
   // Получение брендов
   getBrands: async (): Promise<Array<{ id: number; name: string }>> => {
-    // Временная заглушка - возвращаем пустой массив
-    // В реальном проекте здесь должен быть запрос к API
-    return [];
+    const response = await apiClient.get<
+      PaginatedResponse<BrandDTO> | BrandDTO[]
+    >("/catalog/brands");
+
+    const list = normalizeContent<BrandDTO>(response.data);
+
+    return list
+      .map((b): { id: number; name: string } | null => {
+        if (typeof b.id !== "number" || typeof b.name !== "string") return null;
+        return { id: b.id, name: b.name };
+      })
+      .filter((v): v is { id: number; name: string } => v !== null);
   },
 };

@@ -31,116 +31,117 @@ import AuthRequiredModal from "@/components/common/AuthRequiredModal";
 
 // Компонент для галереи изображений товара
 const ProductImageGallery = ({
-                                 images,
-                                 productName,
-                             }: {
-    images: ProductImageDTO[];
-    productName: string;
+  images,
+  productName,
+}: {
+  images: ProductImageDTO[];
+  productName: string;
 }) => {
-    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-    // Безопасная нормализация src
-    // Безопасная нормализация src
-    const resolveImageSrc = (src?: string | null) => {
-        const placeholder = "/product-placeholder.jpg";
-        if (!src || typeof src !== "string" || src.trim() === "") return placeholder;
+  // Безопасная нормализация src
+  // Безопасная нормализация src
+  const resolveImageSrc = (src?: string | null) => {
+    const placeholder = "/product-placeholder.jpg";
+    if (!src || typeof src !== "string" || src.trim() === "")
+      return placeholder;
 
-        const trimmed = src.trim();
+    const trimmed = src.trim();
 
-        // Абсолютные ссылки оставляем как есть
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-            return trimmed;
-        }
+    // Абсолютные ссылки оставляем как есть
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return trimmed;
+    }
 
-        // Базовый origin бэка: берем из NEXT_PUBLIC_API_URL (без /api) или NEXT_PUBLIC_WS_URL, иначе дефолт на localhost:8080
-        const apiBase =
-            (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/api\/?$/, "") ||
-            process.env.NEXT_PUBLIC_WS_URL ||
-            "http://localhost:8080";
+    // Базовый origin бэка: берем из NEXT_PUBLIC_API_URL (без /api) или NEXT_PUBLIC_WS_URL, иначе дефолт на localhost:8080
+    const apiBase =
+      (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/api\/?$/, "") ||
+      process.env.NEXT_PUBLIC_WS_URL ||
+      "http://localhost:8080";
 
-        const ensureLeadingSlash = (p: string) => (p.startsWith("/") ? p : `/${p}`);
-        const uploadsBase = `${apiBase}/uploads/product-images`;
+    const ensureLeadingSlash = (p: string) => (p.startsWith("/") ? p : `/${p}`);
+    const uploadsBase = `${apiBase}/uploads/product-images`;
 
-        // Плейсхолдеры из public
-        if (trimmed === "/product-placeholder.jpg" || trimmed === "/product-placeholder.jpg") {
-            return trimmed;
-        }
+    // Плейсхолдеры из public
+    if (
+      trimmed === "/product-placeholder.jpg" ||
+      trimmed === "/product-placeholder.jpg"
+    ) {
+      return trimmed;
+    }
 
-        // Пути от бэка, уже содержащие uploads/... или files/...
-        if (trimmed.startsWith("/uploads/") || trimmed.startsWith("uploads/")) {
-            return `${apiBase}${ensureLeadingSlash(trimmed)}`;
-        }
-        if (trimmed.startsWith("/files/") || trimmed.startsWith("files/")) {
-            return `${apiBase}${ensureLeadingSlash(trimmed)}`;
-        }
+    // Пути от бэка, уже содержащие uploads/... или files/...
+    if (trimmed.startsWith("/uploads/") || trimmed.startsWith("uploads/")) {
+      return `${apiBase}${ensureLeadingSlash(trimmed)}`;
+    }
+    if (trimmed.startsWith("/files/") || trimmed.startsWith("files/")) {
+      return `${apiBase}${ensureLeadingSlash(trimmed)}`;
+    }
 
-        // Если это просто имя файла (uuid.jpg или любое без слеша) — кладем в /uploads/product-images
-        if (!trimmed.includes("/")) {
-            return `${uploadsBase}/${trimmed}`;
-        }
+    // Если это просто имя файла (uuid.jpg или любое без слеша) — кладем в /uploads/product-images
+    if (!trimmed.includes("/")) {
+      return `${uploadsBase}/${trimmed}`;
+    }
 
-        // Любые другие абсолютные пути начиная с / считаем public
-        if (trimmed.startsWith("/")) {
-            return trimmed;
-        }
+    // Любые другие абсолютные пути начиная с / считаем public
+    if (trimmed.startsWith("/")) {
+      return trimmed;
+    }
 
-        // Остальные относительные — тоже в /uploads/product-images
-        return `${uploadsBase}/${trimmed}`;
-    };
+    // Остальные относительные — тоже в /uploads/product-images
+    return `${uploadsBase}/${trimmed}`;
+  };
 
+  const currentImage = images?.[selectedImageIndex] || {
+    imagePath: "/product-placeholder.jpg",
+    altText: productName,
+  };
 
+  const currentSrc = resolveImageSrc(currentImage.imagePath);
 
-    const currentImage = images?.[selectedImageIndex] || {
-        imagePath: "/product-placeholder.jpg",
-        altText: productName,
-    };
+  return (
+    <div className="space-y-4">
+      {/* Основное изображение */}
+      <div className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden">
+        {isLoading && (
+          <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+        )}
+        <Image
+          src={currentSrc}
+          alt={currentImage.altText || productName}
+          fill
+          className={`object-cover ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
+          onLoad={() => setIsLoading(false)}
+          onError={() => setIsLoading(false)}
+        />
+      </div>
 
-    const currentSrc = resolveImageSrc(currentImage.imagePath);
-
-    return (
-        <div className="space-y-4">
-            {/* Основное изображение */}
-            <div className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden">
-                {isLoading && (
-                    <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
-                )}
+      {/* Миниатюры */}
+      {images && images.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {images.map((image, index) => {
+            const thumbSrc = resolveImageSrc(image.imagePath);
+            return (
+              <button
+                key={image.id || index}
+                onClick={() => setSelectedImageIndex(index)}
+                className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${index === selectedImageIndex ? "border-mint" : "border-gray-200 dark:border-gray-700 hover:border-gray-300"}`}
+              >
                 <Image
-                    src={currentSrc}
-                    alt={currentImage.altText || productName}
-                    fill
-                    className={`object-cover ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
-                    onLoad={() => setIsLoading(false)}
-                    onError={() => setIsLoading(false)}
+                  src={thumbSrc}
+                  alt={image.altText || `${productName} ${index + 1}`}
+                  fill
+                  className="object-cover"
                 />
-            </div>
-
-            {/* Миниатюры */}
-            {images && images.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                    {images.map((image, index) => {
-                        const thumbSrc = resolveImageSrc(image.imagePath);
-                        return (
-                            <button
-                                key={image.id || index}
-                                onClick={() => setSelectedImageIndex(index)}
-                                className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${index === selectedImageIndex ? "border-mint" : "border-gray-200 dark:border-gray-700 hover:border-gray-300"}`}
-                            >
-                                <Image
-                                    src={thumbSrc}
-                                    alt={image.altText || `${productName} ${index + 1}`}
-                                    fill
-                                    className="object-cover"
-                                />
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
+              </button>
+            );
+          })}
         </div>
-    );
+      )}
+    </div>
+  );
 };
-
 
 // Компонент для отображения отзывов
 const ProductReviews = ({
@@ -253,15 +254,14 @@ export default function ProductPage() {
   });
 
   // Инициализация stores при авторизации
-    useEffect(() => {
-        if (isAuthenticated) {
-            cartStore.fetchCart();
-            wishlistStore.fetchWishlist();
-        }
-    }, [isAuthenticated]);
+  useEffect(() => {
+    if (isAuthenticated) {
+      cartStore.fetchCart();
+      wishlistStore.fetchWishlist();
+    }
+  }, [isAuthenticated, cartStore, wishlistStore]);
 
-
-    // Проверка состояния товара в корзине и wishlist
+  // Проверка состояния товара в корзине и wishlist
   const isInCart = cartStore.isInCart(productId);
   const isInWishlist = wishlistStore.isInWishlist(productId);
   const cartItem = cartStore.getCartItem(productId);

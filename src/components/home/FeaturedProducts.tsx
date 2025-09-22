@@ -92,29 +92,35 @@ export default function FeaturedProducts() {
     },
   });
 
-  const handleAddToCart = useCallback((product: ProductDTO) => {
-    if (!isAuthenticated) {
-      setAuthModalConfig({
-        title: "Войдите, чтобы добавить в корзину",
-        description: `Для добавления товара "${product.name}" в корзину необходимо войти в систему`,
-      });
-      setShowAuthModal(true);
-      return;
-    }
-    addToCartMutation.mutate(product.id!);
-  }, [isAuthenticated, addToCartMutation]);
+  const handleAddToCart = useCallback(
+    (product: ProductDTO) => {
+      if (!isAuthenticated) {
+        setAuthModalConfig({
+          title: "Войдите, чтобы добавить в корзину",
+          description: `Для добавления товара "${product.name}" в корзину необходимо войти в систему`,
+        });
+        setShowAuthModal(true);
+        return;
+      }
+      addToCartMutation.mutate(product.id!);
+    },
+    [isAuthenticated, addToCartMutation],
+  );
 
-  const handleToggleWishlist = useCallback((product: ProductDTO) => {
-    if (!isAuthenticated) {
-      setAuthModalConfig({
-        title: "Войдите, чтобы добавить в избранное",
-        description: `Для добавления товара "${product.name}" в избранное необходимо войти в систему`,
-      });
-      setShowAuthModal(true);
-      return;
-    }
-    toggleWishlistMutation.mutate(product.id!);
-  }, [isAuthenticated, toggleWishlistMutation]);
+  const handleToggleWishlist = useCallback(
+    (product: ProductDTO) => {
+      if (!isAuthenticated) {
+        setAuthModalConfig({
+          title: "Войдите, чтобы добавить в избранное",
+          description: `Для добавления товара "${product.name}" в избранное необходимо войти в систему`,
+        });
+        setShowAuthModal(true);
+        return;
+      }
+      toggleWishlistMutation.mutate(product.id!);
+    },
+    [isAuthenticated, toggleWishlistMutation],
+  );
 
   const formatPrice = useCallback((price: number | string) => {
     const numPrice = Number(price);
@@ -130,30 +136,35 @@ export default function FeaturedProducts() {
     }).format(numPrice);
   }, []);
 
-  const calculateDiscount = useCallback((regularPrice: number | string, salePrice: number | string) => {
-    const regular = Number(regularPrice);
-    const sale = Number(salePrice);
-    if (isNaN(regular) || isNaN(sale) || regular <= 0) {
-      return 0;
-    }
-    return Math.round(((regular - sale) / regular) * 100);
-  }, []);
+  const calculateDiscount = useCallback(
+    (regularPrice: number | string, salePrice: number | string) => {
+      const regular = Number(regularPrice);
+      const sale = Number(salePrice);
+      if (isNaN(regular) || isNaN(sale) || regular <= 0) {
+        return 0;
+      }
+      return Math.round(((regular - sale) / regular) * 100);
+    },
+    [],
+  );
 
   const formatImageUrl = useCallback((imagePath: string): string => {
     // If already a complete URL, return as is
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
       return imagePath;
     }
-    
+
     // If already starts with slash, return as is
-    if (imagePath.startsWith('/')) {
+    if (imagePath.startsWith("/")) {
       return imagePath;
     }
-    
+
     // For relative paths, construct the full URL
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
     // Remove /api from base URL if present and add /uploads prefix
-    const imageBaseUrl = baseUrl.replace('/api', '') + '/uploads/product-images/';
+    const imageBaseUrl =
+      baseUrl.replace("/api", "") + "/uploads/product-images/";
     return imageBaseUrl + imagePath;
   }, []);
 
@@ -216,7 +227,10 @@ export default function FeaturedProducts() {
                     product.images.length > 0 &&
                     product.images[0]?.imagePath ? (
                       <Image
-                        src={formatImageUrl(product.images[0].imagePath) || "/images/product-placeholder.jpg"}
+                        src={
+                          formatImageUrl(product.images[0].imagePath) ||
+                          "/images/product-placeholder.jpg"
+                        }
                         alt={product.name}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
@@ -231,7 +245,12 @@ export default function FeaturedProducts() {
                     {/* Badges */}
                     {product.salePrice && product.regularPrice && (
                       <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                        -{calculateDiscount(product.regularPrice, product.salePrice)}%
+                        -
+                        {calculateDiscount(
+                          product.regularPrice,
+                          product.salePrice,
+                        )}
+                        %
                       </span>
                     )}
 

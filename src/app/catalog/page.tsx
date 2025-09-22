@@ -1,7 +1,7 @@
 // src/app/catalog/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { Search, Grid, List, SlidersHorizontal } from "lucide-react";
 import {
   Input,
@@ -15,7 +15,6 @@ import {
 } from "antd";
 import { useInView } from "react-intersection-observer";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api/client";
 import ProductCardInteractive from "@/components/catalog/ProductCardInteractive";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ProductDTO } from "@/types/api";
@@ -23,7 +22,10 @@ import { useAuth } from "@/hooks/queries/useAuth";
 import { useCartStore } from "@/stores/useCartStore";
 import { useWishlistStore } from "@/stores/useWishlistStore";
 import Header from "@/components/common/Header";
-
+import { useSearchParams, useRouter } from "next/navigation";
+import { catalogApi } from "@/lib/api/services/catalog";
+import { useFiltersStore } from "@/stores/filters";
+import CatalogFiltersSync from "@/components/catalog/CatalogFiltersSync";
 const { Option } = Select;
 
 interface Filters {
@@ -36,7 +38,8 @@ interface Filters {
   sort: string;
 }
 
-export default function CatalogPage() {
+// Исправлено: корректная сигнатура компонента без синтаксических ошибок
+function CatalogContent() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filters, setFilters] = useState<Filters>({
     search: "",
@@ -44,6 +47,9 @@ export default function CatalogPage() {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [searchInput, setSearchInput] = useState("");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const setFilterInStore = useFiltersStore((s) => s.setFilter);
 
   const { ref, inView } = useInView({
     threshold: 0.1,
@@ -63,15 +69,44 @@ export default function CatalogPage() {
     }
   }, [isAuthenticated, fetchCart, fetchWishlist]);
 
-  // Загрузка категорий и брендов для фильтров
+  // Синхронизация фильтров из URL (brandId, categoryId) в локальный стейт и zustand
+  useEffect(() => {
+    const brandIdStr = searchParams.get("brandId");
+    const categoryIdStr = searchParams.get("categoryId");
+
+    let changed = false;
+
+    if (brandIdStr) {
+      const id = Number(brandIdStr);
+      if (Number.isFinite(id)) {
+        setFilters((prev) => ({ ...prev, brandId: id }));
+        setFilterInStore("brandId", id);
+        changed = true;
+      }
+    }
+
+    if (categoryIdStr) {
+      const id = Number(categoryIdStr);
+      if (Number.isFinite(id)) {
+        setFilters((prev) => ({ ...prev, categoryId: id }));
+        setFilterInStore("categoryId", id);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      router.replace("/catalog");
+    }
+  }, [searchParams, setFilterInStore, router]);
+
+  // Загрузка категорий и брендов для фильтров из реальных API
   const { data: categories = [] } = useQuery<
     Array<{ id: number; name: string }>
   >({
     queryKey: ["categories"],
     queryFn: async () => {
       try {
-        const response = await api.getCategories();
-        return (response.data as Array<{ id: number; name: string }>) || [];
+        return await catalogApi.getCategories();
       } catch {
         return [];
       }
@@ -82,16 +117,14 @@ export default function CatalogPage() {
     queryKey: ["brands"],
     queryFn: async () => {
       try {
-        const response = await api.getBrands();
-        return (response.data as Array<{ id: number; name: string }>) || [];
+        return await catalogApi.getBrands();
       } catch {
-        // Если API для брендов еще не готов
         return [];
       }
     },
   });
 
-  // Загрузка товаров с бесконечным скроллом
+  // Загрузка товаров с бесконечным скроллом через catalogApi
   const {
     data,
     fetchNextPage,
@@ -102,32 +135,21 @@ export default function CatalogPage() {
   } = useInfiniteQuery({
     queryKey: ["catalog", filters],
     queryFn: async ({ pageParam = 0 }) => {
-      // Правильное формирование параметров для API
-      const params: Record<string, string> = {
-        page: pageParam.toString(),
-        size: "20",
+      return await catalogApi.getProducts({
+        page: pageParam,
+        size: 20,
         sort: filters.sort,
-      };
-
-      // Добавляем только непустые фильтры
-      if (filters["search"]?.trim()) params["search"] = filters["search"];
-      if (filters["categoryId"])
-        params["categoryId"] = filters["categoryId"].toString();
-      if (filters["brandId"]) params["brandId"] = filters["brandId"].toString();
-      if (filters["minPrice"])
-        params["minPrice"] = filters["minPrice"].toString();
-      if (filters["maxPrice"])
-        params["maxPrice"] = filters["maxPrice"].toString();
-      if (filters["onSale"] !== undefined)
-        params["onSale"] = filters["onSale"].toString();
-
-      const response = await api.getProducts(params);
-      return response.data;
+        search: filters.search?.trim() || undefined,
+        categoryId: filters.categoryId,
+        brandId: filters.brandId,
+        minPrice: filters.minPrice,
+        maxPrice: filters.maxPrice,
+        onSale: filters.onSale,
+      });
     },
     getNextPageParam: (lastPage, pages) => {
-      // Проверяем, есть ли еще страницы
       if ((lastPage as { last?: boolean })?.last === true) return undefined;
-      return pages.length; // Возвращаем номер следующей страницы
+      return pages.length;
     },
     initialPageParam: 0,
   });
@@ -144,7 +166,6 @@ export default function CatalogPage() {
     const timeoutId = setTimeout(() => {
       debouncedSearch(searchInput);
     }, 500);
-
     return () => clearTimeout(timeoutId);
   }, [searchInput, debouncedSearch]);
 
@@ -160,6 +181,13 @@ export default function CatalogPage() {
     value: string | string[] | number | boolean | undefined,
   ) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
+    // при изменении бренд/категории руками — синхронизируем и в zustand
+    if (key === "brandId" && typeof value === "number") {
+      setFilterInStore("brandId", value);
+    }
+    if (key === "categoryId" && typeof value === "number") {
+      setFilterInStore("categoryId", value);
+    }
   };
 
   const clearFilters = () => {
@@ -168,6 +196,8 @@ export default function CatalogPage() {
       sort: "sortOrder,asc",
     });
     setSearchInput("");
+    setFilterInStore("brandId", undefined as unknown as number); // сбросим в сторе
+    setFilterInStore("categoryId", undefined as unknown as number);
   };
 
   const activeFiltersCount = Object.keys(filters).filter(
@@ -279,6 +309,10 @@ export default function CatalogPage() {
     <div className="min-h-screen bg-gradient-to-br from-beige-light via-white to-mint/10 dark:from-forest dark:via-gray-900 dark:to-forest/50 transition-colors duration-500">
       {/* Header */}
       <Header hideSearch={true} />
+
+      {/* Синхронизация фильтров из URL (brandId/categoryId) в zustand */}
+      <CatalogFiltersSync />
+
       {/* Хедер каталога */}
       <div className="bg-white/95 dark:bg-forest/95 backdrop-blur-lg shadow-sm sticky top-20 z-10 mt-20">
         <div className="container mx-auto px-4 py-4">
@@ -476,5 +510,21 @@ export default function CatalogPage() {
         <FiltersContent />
       </Drawer>
     </div>
+  );
+}
+
+export default function CatalogPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-beige-light via-white to-mint/10 dark:from-forest dark:via-gray-900 dark:to-forest/50 transition-colors duration-500">
+          <div className="flex justify-center items-center h-screen">
+            <Spin size="large" />
+          </div>
+        </div>
+      }
+    >
+      <CatalogContent />
+    </Suspense>
   );
 }
